@@ -1,0 +1,16 @@
+{
+    "clangd.arguments": [
+        "--background-index",
+        "--compile-commands-dir=.vscode",
+        "-j=12",
+        // "--folding-ranges",
+        "--query-driver=/opt/gcc-ubuntu-9.3.0-2020.03-x86_64-aarch64-linux-gnu/bin/aarch64-linux-gnu-g*",
+        "--clang-tidy",
+        "--all-scopes-completion",
+        "--completion-style=detailed",
+        "--function-arg-placeholders",
+        "--header-insertion=never",
+        "--pch-storage=disk",
+    ],
+    "files.autoGuessEncoding": true
+}

@@ -1,0 +1,124 @@
+Diagnostics:
+  ClangTidy:
+    Add:
+    [
+      clang-analyzer-*,
+      modernize-*,
+      bugprone-*,
+      performance-*,
+      portability-*,
+      readability-*,
+      cppcoreguidelines-no-malloc,
+      cppcoreguidelines-macro-usage,
+      cppcoreguidelines-pro-bounds-pointer-arithmetic,
+      cert-dcl21-cpp,
+      cert-dcl58-cpp,
+      cert-err34-c,
+      cert-err52-cpp,
+      cert-err58-cpp,
+      cert-err60-cpp,
+      cert-flp30-c,
+      cert-msc50-cpp,
+      cert-msc51-cpp,
+      cert-str34-c,
+      cppcoreguidelines-interfaces-global-init,
+      cppcoreguidelines-narrowing-conversions,
+      cppcoreguidelines-pro-type-member-init,
+      cppcoreguidelines-pro-type-static-cast-downcast,
+      cppcoreguidelines-slicing,
+      google-default-arguments,
+      google-explicit-constructor,
+      google-runtime-operator,
+      hicpp-exception-baseclass,
+      hicpp-multiway-paths-covered,
+      misc-misplaced-const,
+      misc-new-delete-overloads,
+      misc-no-recursion,
+      misc-non-copyable-objects,
+      misc-throw-by-value-catch-by-reference,
+      misc-unconventional-assign-operator,
+      misc-uniqueptr-reset-release,
+      modernize-avoid-bind,
+      modernize-concat-nested-namespaces,
+      modernize-deprecated-headers,
+      modernize-deprecated-ios-base-aliases,
+      modernize-loop-convert,
+      modernize-make-shared,
+      modernize-make-unique,
+      modernize-pass-by-value,
+      modernize-raw-string-literal,
+      modernize-redundant-void-arg,
+      modernize-replace-auto-ptr,
+      modernize-replace-disallow-copy-and-assign-macro,
+      modernize-replace-random-shuffle,
+      modernize-return-braced-init-list,
+      modernize-shrink-to-fit,
+      modernize-unary-static-assert,
+      modernize-use-auto,
+      modernize-use-bool-literals,
+      modernize-use-emplace,
+      modernize-use-equals-default,
+      modernize-use-equals-delete,
+      modernize-use-nodiscard,
+      modernize-use-noexcept,
+      modernize-use-nullptr,
+      modernize-use-override,
+      modernize-use-transparent-functors,
+      modernize-use-uncaught-exceptions,
+      openmp-use-default-none,
+      performance-faster-string-find,
+    ]
+    Remove:
+    [
+      readability-identifier-length,
+      readability-magic-numbers,
+      bugprone-easily-swappable-parameters,
+      readability-function-cognitive-complexity,
+      readability-suspicious-call-argument,
+      readability-redundant-control-flow,
+      readability-isolate-declaration,
+    ]
+CompileFlags:                             
+  Add: 
+    [
+      -W,
+      -Wall,
+      -Wshadow,
+      -Wtype-limits,
+      -Wasm,
+      -Wchkp,
+      -Warray-parameter,
+      -Wthread-safety,
+      -Wswitch-default,
+      -Wuninitialized,
+      -Wunused-label,
+      -Wunused-lambda-capture,
+      -Wno-error=unused-command-line-argument-hard-error-in-future,
+      -Wno-sign-compare,
+      -Wno-void-pointer-to-int-cast,
+      -Wno-int-to-pointer-cast,
+      -Wno-asm_invalid_global_var_reg,
+      -Wno-format,
+      -flto,
+      -fsanitize=thread,
+      -fsanitize=undefined,
+      -fsanitize=dataflow,
+      -fno-omit-frame-pointer,
+      --target=aarch64-linux-gnu,
+    ]
+  Remove:
+    [
+      -mabi=lp64,
+      -fno-var-tracking-assignments,
+      -fconserve-stack,
+      -mpc-relative-literal-loads,
+    ]
+    
+      
+InlayHints:
+  Enabled: Yes
+  ParameterNames: Yes
+  DeducedTypes: Yes
+
+Hover:
+  ShowAKA: Yes

@@ -1,0 +1,142 @@
+# Generated from CLion C/C++ Code Style settings
+
+BasedOnStyle: Microsoft
+
+#头文件排序
+SortIncludes: Never
+
+#转义换行符对齐
+AlignEscapedNewlines: Left
+
+#对齐注释
+AlignTrailingComments: true
+
+# 连续赋值时，对齐所有等号
+AlignConsecutiveAssignments: 
+  Enabled: true
+  #跨空行对齐
+  AcrossEmptyLines: true
+  #跨注释对齐
+  AcrossComments: false
+  #填充空格
+  PadOperators: true
+  AlignCompound: true
+ 
+# 连续声明时，对齐所有声明的变量名
+AlignConsecutiveDeclarations: 
+  Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: false
+  PadOperators: true
+  AlignCompound: true
+
+#对齐宏
+AlignConsecutiveMacros:
+  Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: false
+  PadOperators: true
+
+#访问修饰符的额外缩进或升级，例如 .public:
+AccessModifierOffset: -4
+
+#将参数水平对齐在左括号之后
+AlignAfterOpenBracket: Align
+
+#对结构数组使用初始化时，会将字段对齐到列中
+AlignArrayOfStructures: Left
+
+#对齐连续位字段的样式
+AlignConsecutiveBitFields: false
+
+#水平对齐二元表达式和三元表达式的操作数
+AlignOperands: Align
+
+#如果函数调用或带大括号的初始值设定项列表不适合某一行，则允许将所有参数放在下一行
+AllowAllArgumentsOnNextLine: false
+
+#如果函数声明不适合某一行，则允许将函数声明的所有参数放在下一行
+AllowAllParametersOfDeclarationOnNextLine: false
+
+#根据值，可以放在一行上
+AllowShortBlocksOnASingleLine: Never
+
+#短的case将被收缩到一行
+AllowShortCaseLabelsOnASingleLine: false
+
+#允许在一行上使用短枚举
+AllowShortEnumsOnASingleLine: false
+
+#短的函数可以放在一行 None:永远不放在一行
+AllowShortFunctionsOnASingleLine: None
+
+#根据值，if可以放在一行上
+AllowShortIfStatementsOnASingleLine: Never
+
+#根据值，可以放在一行上
+AllowShortLambdasOnASingleLine: None
+
+#如果 ，可以放在一行上
+AllowShortLoopsOnASingleLine: false
+
+#函数声明返回要使用的类型中断样式
+AlwaysBreakAfterReturnType: None
+
+#要使用的模板声明中断样式
+AlwaysBreakTemplateDeclarations: Yes
+
+#如果 ，则函数调用的参数要么全部在同一行上，要么每个参数都有一行
+BinPackArguments: true
+
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel: true
+  AfterClass: true
+  AfterControlStatement: Always
+  AfterEnum: true
+  AfterStruct: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterUnion: true
+  AfterExternBlock: true
+  BeforeCatch: true
+  BeforeElse: true
+  IndentBraces: false
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: BeforeColon
+BreakInheritanceList: BeforeColon
+ColumnLimit: 120
+CompactNamespaces: false
+ContinuationIndentWidth: 4
+IndentCaseLabels: true
+IndentPPDirectives: None
+IndentWidth: 4
+KeepEmptyLinesAtTheStartOfBlocks: true
+MaxEmptyLinesToKeep: 2
+NamespaceIndentation: All
+ObjCSpaceAfterProperty: false
+ObjCSpaceBeforeProtocolList: true
+PointerAlignment: Right
+ReflowComments: false
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: false
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: false
+SpaceInEmptyParentheses: false
+SpacesBeforeTrailingComments: 0
+SpacesInAngles: false
+SpacesInCStyleCastParentheses: false
+SpacesInContainerLiterals: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+# TabWidth: 4
+UseTab: Never
