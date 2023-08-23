@@ -2,7 +2,7 @@
  * @Author: zwf 240970521@qq.com
  * @Date: 2023-08-23 22:03:49
  * @LastEditors: zwf 240970521@qq.com
- * @LastEditTime: 2023-08-23 22:10:47
+ * @LastEditTime: 2023-08-23 22:14:39
  * @FilePath: /hardware-breakpoint/README.md
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 -->
@@ -49,4 +49,4 @@ Linux内核自带的硬件断点是跟很多业务捆绑的，开启硬件断点
 3. 在启用`kgdb`联动功能后，可以通过`kgdb`的设置断点功能设置硬件断点。
 4. 在`shell`下通过`proc`调试文件来设置断点。
 
-当断点被触发时，会打印出当时操作这块内存的堆栈信息，便于问题定位，或是代码的深度理解。若是启用了`KGDB`的联动功能，则会在打出堆栈信息后，进入`KGDB`状态，等待远程主机连接调试。`KGDB`的原来及使用可以参考我的前一篇文章[KGDB原理分析及远程挂载调试ARM64内核](https://blog.csdn.net/qq_38384263/article/details/132290737?spm=1001.2014.3001.5502)。
+断点监测的虚拟地址范围最大为2Gb。当断点被触发时，会打印出当时操作这块内存的堆栈信息，便于问题定位，或是代码的深度理解。若是启用了`KGDB`的联动功能，则会在打出堆栈信息后，进入`KGDB`状态，等待远程主机连接调试。`KGDB`的原来及使用可以参考我的前一篇文章[KGDB原理分析及远程挂载调试ARM64内核](https://blog.csdn.net/qq_38384263/article/details/132290737?spm=1001.2014.3001.5502)。
