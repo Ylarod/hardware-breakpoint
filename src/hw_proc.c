@@ -19,29 +19,27 @@
 static struct proc_dir_entry *proc_file = NULL;
 
 //帮助
-char *test_proc_write_usag = {
-    "Usage:\n"
-    "\thw_break support cmd type: \n"
-    "\t\t1: echo add <type> <len> <symbol> > /proc/breakpoint, add a breakpoint\n"
-    "\t\t\t[type]:\n"
-    "\t\t\t\t[wp1]: HW_BREAKPOINT_R\n"
-    "\t\t\t\t[wp2]: HW_BREAKPOINT_W\n"
-    "\t\t\t\t[wp3]: HW_BREAKPOINT_R|HW_BREAKPOINT_W\n"
-    "\t\t\t\t[bp]:  HW_BREAKPOINT_X\n"
-    "t\t\t[len]:[0,8] (2^3,2^31]\n"
-    "\t\t2: echo del <symbol> > /proc/breakpoint, del a breakpoint\n"};
-char *test_proc_write_example = {
-    "Example:\n"
-    "\tThe first step:\n"
-    "\t\techo add wp3 4 zwf_test_value > /proc/breakpoint, add a watchpoint at "
-    "&zwf_test_value\n"
-    "\tThe second step:\n"
-    "\t\techo write > /proc/breakpoint, write zwf_test_value\n"
-    "\tThe third step:\n"
-    "\t\techo read > /proc/breakpoint, read zwf_test_value\n"
-    "\tThe forth step:\n"
-    "\t\techo del zwf_test_value > /proc/breakpoint, del wawtchpoint at "
-    "&zwf_test_value\n"};
+char *test_proc_write_usag    = {"Usage:\n"
+                                    "\thw_break support cmd type: \n"
+                                    "\t\t1: echo add <type> <len> <symbol> > /proc/breakpoint, add a breakpoint\n"
+                                    "\t\t\t[type]:\n"
+                                    "\t\t\t\t[wp1]: HW_BREAKPOINT_R\n"
+                                    "\t\t\t\t[wp2]: HW_BREAKPOINT_W\n"
+                                    "\t\t\t\t[wp3]: HW_BREAKPOINT_R|HW_BREAKPOINT_W\n"
+                                    "\t\t\t\t[bp]:  HW_BREAKPOINT_X\n"
+                                    "t\t\t[len]:[0,8] (2^3,2^31]\n"
+                                    "\t\t2: echo del <symbol> > /proc/breakpoint, del a breakpoint\n"};
+char *test_proc_write_example = {"Example:\n"
+                                 "\tThe first step:\n"
+                                 "\t\techo add wp3 4 zwf_test_value > /proc/breakpoint, add a watchpoint at "
+                                 "&zwf_test_value\n"
+                                 "\tThe second step:\n"
+                                 "\t\techo write > /proc/breakpoint, write zwf_test_value\n"
+                                 "\tThe third step:\n"
+                                 "\t\techo read > /proc/breakpoint, read zwf_test_value\n"
+                                 "\tThe forth step:\n"
+                                 "\t\techo del zwf_test_value > /proc/breakpoint, del wawtchpoint at "
+                                 "&zwf_test_value\n"};
 /*******************************************************************************
 * 函数名  : print_cmd_params
 * 描  述  : 打印cmd的一些参数信息

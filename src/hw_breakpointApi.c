@@ -36,8 +36,7 @@ static int HW_cpuFunctionCall(int cpu, HW_remoteFunctionF func, void *info)
     return data.ret;
 }
 
-static int HW_breakpointParse(struct HW_breakpointInfo *bp, const HW_breakpointAttr *attr,
-                              HW_breakpointVC *hw)
+static int HW_breakpointParse(struct HW_breakpointInfo *bp, const HW_breakpointAttr *attr, HW_breakpointVC *hw)
 {
     int err;
 
@@ -145,8 +144,7 @@ void HW_breakpointUnregister(struct HW_breakpointInfo *__percpu *bp, int state)
     put_online_cpus();
 }
 
-int HW_breakpointRegister(struct HW_breakpointInfo *__percpu *cpu_events, HW_breakpointAttr *attr,
-                          int *state)
+int HW_breakpointRegister(struct HW_breakpointInfo *__percpu *cpu_events, HW_breakpointAttr *attr, int *state)
 {
     struct HW_breakpointInfo *bp;
     int                       cpu;

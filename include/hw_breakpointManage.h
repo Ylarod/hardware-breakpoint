@@ -15,4 +15,3 @@ int  HW_breakpointInstallFromSymbol(char *name, int len, int type);
 void HW_breakpointUnInstallFromSymbol(char *name);
 
 #endif
-

@@ -116,7 +116,7 @@ typedef struct HW_breakpointCtrlReg
         lbn : 4,      //16~19bit, wt设置时才需要设置，跟链接断点有关
         ssc : 2,      //14,15bit, 安全状态控制，控制什么状态才会监听断点事件
         hmc : 1,      //13bit, 结合上述字段使用
-        len : 8,//5~12bit, 控制watchpoint监控的字节数量, 每一位代表1字节，最大8字节
+        len : 8,      //5~12bit, 控制watchpoint监控的字节数量, 每一位代表1字节，最大8字节
         type : 2,     //3~4bit， 断点类型: breakpoint/watchpoint
         privilege : 2,//1~2bit, 上次断点设置时的el等级，配合ssc, hmc使用
         enabled : 1;  //0bit, watchpoint使能
@@ -131,8 +131,7 @@ typedef struct HW_breakpointVC
 
 static inline u32 HW_encodeCtrlReg(HW_breakpointCtrlReg ctrl)
 {
-    u32 val = (ctrl.mask << 24) | (ctrl.len << 5) | (ctrl.type << 3) | (ctrl.privilege << 1) |
-              ctrl.enabled;
+    u32 val = (ctrl.mask << 24) | (ctrl.len << 5) | (ctrl.type << 3) | (ctrl.privilege << 1) | ctrl.enabled;
 
     if (is_kernel_in_hyp_mode() && ctrl.privilege == AARCH64_BREAKPOINT_EL1)
         val |= DBG_HMC_HYP;
@@ -142,15 +141,15 @@ static inline u32 HW_encodeCtrlReg(HW_breakpointCtrlReg ctrl)
 
 static inline void HW_decodeCtrlReg(u32 reg, HW_breakpointCtrlReg *ctrl)
 {
-    ctrl->enabled     = reg & 0x1;
+    ctrl->enabled   = reg & 0x1;
     reg             >>= 1;
-    ctrl->privilege   = reg & 0x3;
+    ctrl->privilege = reg & 0x3;
     reg             >>= 2;
-    ctrl->type        = reg & 0x3;
+    ctrl->type      = reg & 0x3;
     reg             >>= 2;
-    ctrl->len         = reg & 0xff;
+    ctrl->len       = reg & 0xff;
     reg             >>= 19;
-    ctrl->mask        = reg & 0x1f;
+    ctrl->mask      = reg & 0x1f;
 }
 
 /* Determine number of BRP registers available. */

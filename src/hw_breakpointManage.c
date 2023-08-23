@@ -27,8 +27,7 @@ extern u32                zwf_test_value1;
 /*显示一个断点的信息*/
 static void HW_breakpointShowOne(struct HW_bpManageInfo *bpInfo, int index)
 {
-    char type[4][30] = {"HW_BREAKPOINT_R", "HW_BREAKPOINT_W", "HW_BREAKPOINT_RW",
-                        "HW_BREAKPOINT_X"};
+    char type[4][30] = {"HW_BREAKPOINT_R", "HW_BREAKPOINT_W", "HW_BREAKPOINT_RW", "HW_BREAKPOINT_X"};
 
     printk("--------------------------------------------------\n");
     /*打印第几个断点*/
@@ -54,8 +53,7 @@ static void HW_breakpointShowOne(struct HW_bpManageInfo *bpInfo, int index)
     /*打印监控的符号名称*/
     printk("\tname: \t%s\n", bpInfo->symbolName);
     /*打印想监控的地址范围*/
-    printk("\tmonit: \t0x%llx--->0x%llx\n", bpInfo->attr.addr,
-           bpInfo->attr.addr + bpInfo->attr.len);
+    printk("\tmonit: \t0x%llx--->0x%llx\n", bpInfo->attr.addr, bpInfo->attr.addr + bpInfo->attr.len);
     /*打印监控的字节长度*/
     printk("\tlen: \t%d\n", bpInfo->attr.len);
     /*打印监控的地址掩码*/
@@ -215,7 +213,7 @@ static int HW_getAddrMask(u64 addr, int len)
         {
             break;
         }
-        mask            = mask + 1;
+        mask           = mask + 1;
         alignment_mask |= (1 << i);
         i++;
     }
