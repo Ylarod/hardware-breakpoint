@@ -230,7 +230,7 @@ static ssize_t hw_proc_write(struct file *file, const char __user *pBuf, size_t 
             case 2:
             {
                 type = HW_BREAKPOINT_X;
-                name = argv[2];
+                name = argv[3];
                 break;
             }
             /*长度是3代表内存断点，第三个字符是断点类型*/

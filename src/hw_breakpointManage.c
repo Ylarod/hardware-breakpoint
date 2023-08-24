@@ -53,7 +53,7 @@ static void HW_breakpointShowOne(struct HW_bpManageInfo *bpInfo, int index)
     /*打印监控的符号名称*/
     printk("\tname: \t%s\n", bpInfo->symbolName);
     /*打印想监控的地址范围*/
-    printk("\tmonit: \t0x%llx--->0x%llx\n", bpInfo->attr.addr, bpInfo->attr.addr + bpInfo->attr.len);
+    printk("\tmonit: \t0x%llx--->0x%llx\n", bpInfo->attr.addr, bpInfo->attr.addr + bpInfo->attr.len - 1);
     /*打印监控的字节长度*/
     printk("\tlen: \t%d\n", bpInfo->attr.len);
     /*打印监控的地址掩码*/

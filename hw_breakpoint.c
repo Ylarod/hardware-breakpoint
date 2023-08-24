@@ -592,15 +592,16 @@ static int HW_breakpointHandler(unsigned long unused, unsigned int esr, struct p
             goto unlock;
 
         HW_counterArchbp(bp)->trigger = addr;
+        printk("bp is triger = 0x%llx, addr = 0x%llx, len = %d\n", addr, bp->attr.addr, bp->attr.len);
+        show_regs(regs);
+        HW_counterArchbp(bp)->trigger = 0;
+
     unlock:
         rcu_read_unlock();
     }
 
     HW_toggleBpRegisters(AARCH64_DBG_REG_BCR, DBG_ACTIVE_EL1, 0);
     kernel_step = this_cpu_ptr(&stepping_kernel_bp);
-
-    printk("breakpoint!!!!!!!!!!\n");
-    show_regs(regs);
 
     if (*kernel_step != ARM_KERNEL_STEP_NONE)
         return 0;
@@ -717,9 +718,10 @@ static int HW_watchpointHandler(unsigned long addr, unsigned int esr, struct pt_
         if (addr >= wp->attr.addr && addr < wp->attr.addr + wp->attr.len)
         {
             /*在期望检测的地址范围之内，才打印堆栈信息*/
-            printk("triger = 0x%llx, addr = 0x%llx, len = %d\n", addr, wp->attr.addr, wp->attr.len);
+            printk("wp is triger = 0x%llx, addr = 0x%llx, len = %d\n", addr, wp->attr.addr, wp->attr.len);
             show_regs(regs);
         }
+        info->trigger = 0;
     }
 
     if (*kernel_step != ARM_KERNEL_STEP_NONE)
