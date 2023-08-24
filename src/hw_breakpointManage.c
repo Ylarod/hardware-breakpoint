@@ -465,6 +465,8 @@ void HW_bpManageDeInit(void)
 {
     int i = 0;
 
+    HW_breakpointUninstallAll();
+
 #ifdef KGDB_ENABLE
     HW_bpKgdbOpsUnRegister();
 #endif
