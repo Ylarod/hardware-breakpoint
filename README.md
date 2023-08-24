@@ -2,7 +2,7 @@
  * @Author: zwf 240970521@qq.com
  * @Date: 2023-08-23 22:03:49
  * @LastEditors: zwf 240970521@qq.com
- * @LastEditTime: 2023-08-23 22:14:39
+ * @LastEditTime: 2023-08-24 19:31:37
  * @FilePath: /hardware-breakpoint/README.md
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 -->
@@ -14,22 +14,23 @@
 
 # 为什么要把硬件断点独立成一个驱动
 
-Linux内核自带的硬件断点是跟很多业务捆绑的，开启硬件断点就要把这些业务都打开。这需要重新编译内核，重新编译所有的驱动。内核还好说，重新编译所有驱动，是挺痛苦的。而独立成驱动后就简单了，只需要把驱动插入就行。
+Linux内核自带的硬件断点是跟很多业务捆绑的，开启硬件断点就要把这些业务都打开。这需要重新编译内核，重新编译所有的驱动。内核还好说，重新编译所有驱动，是挺痛苦的。而独立成驱动后就简单了，只需要把驱动插入就行。而且内核的硬件断点只支持监测8字节长度的数据，但是驱动经过自定义修改后，可以最大检测2G的地址空间！！！
 还有就是独立成驱动后，我们可以很方便的对其进行定制修改，比如支持kgdb，触发硬件断点后，使其进入kgdb调试状态，便于我们调试跟踪程序运行过程。
 
 ## 硬件断点依赖的内核修改
 
-硬件断点驱动的编译依赖一些内核的接口才能实现，所以内核也是有一些修改的，但是可以放心，修改量是很少的，只需要导出一些接口即可。
-1. `unregister_step_hook`
-2. `disable_debug_monitors`
-3. `kernel_active_single_step`
-4. `hook_debug_fault_code`
-5. `kernel_enable_single_step`
-6. `read_sanitised_ftr_reg`
-7. `kernel_disable_single_step`
-8. `register_step_hook`
-9. `show_regs`
-10. `enable_debug_monitors`
+~~硬件断点驱动的编译依赖一些内核的接口才能实现，所以内核也是有一些修改的，但是可以放心，修改量是很少的，只需要导出一些接口即可。~~
+~~1. `unregister_step_hook`~~
+~~2. `disable_debug_monitors`~~
+~~3. `kernel_active_single_step`~~
+~~4. `hook_debug_fault_code`~~
+~~5. `kernel_enable_single_step`~~
+~~6. `read_sanitised_ftr_reg`~~
+~~7. `kernel_disable_single_step`~~
+~~8. `register_step_hook`~~
+~~9. `show_regs`~~
+~~10. `enable_debug_monitors`~~
+现在4.19之后的内核皆可直接插入，无需任何依赖
 
 # 硬件断点驱动详解
 
