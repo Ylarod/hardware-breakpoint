@@ -3,6 +3,7 @@
 
 #include "asm-generic/int-ll64.h"
 #include "asm/virt.h"
+#include <asm/debug-monitors.h>
 
 /* Privilege Levels */
 #define AARCH64_BREAKPOINT_EL1 1
@@ -129,6 +130,40 @@ typedef struct HW_breakpointVC
     HW_breakpointCtrlReg ctrl;
 } HW_breakpointVC;
 
+/*以下接口皆是从Kernel中导出*/
+struct fault_info
+{
+    int (*fn)(unsigned long addr, unsigned int esr, struct pt_regs *regs);
+    int         sig;
+    int         code;
+    const char *name;
+};
+typedef struct HW_kernelApi
+{
+    struct
+    {
+        void (*register_step_hook)(struct step_hook *hook);      /*注册step调试异常hook的函数*/
+        void (*unregister_step_hook)(struct step_hook *hook);    /*取消注册step调试异常hook的函数*/
+        void (*enable_debug_monitors)(enum dbg_active_el el);    /*使能debug异常*/
+        void (*disable_debug_monitors)(enum dbg_active_el el);   /*失能debug异常*/
+        int (*kernel_active_single_step)(void);                  /*单步调试是否激活*/
+        void (*kernel_enable_single_step)(struct pt_regs *regs); /*使能单步调试异常*/
+        void (*kernel_disable_single_step)(void);                /*失能单步调试异常*/
+        u64 (*read_sanitised_ftr_reg)(u32 id);                   /*读ftr寄存器*/
+        void (*show_regs)(struct pt_regs *);                     /*显示堆栈*/
+        void (*do_bad)(unsigned long addr, unsigned int esr, struct pt_regs *regs); /*调试异常的默认中断处理函数*/
+    } fun;
+    struct
+    {
+        u64               *hw_breakpoint_restore; /*cpu从调试暂停恢复运行时执行的函数*/
+        struct fault_info *debug_fault_info;      /*接管硬件断点调试异常中断，替换回调函数*/
+    } val;
+
+} HW_kernelApi;
+
+extern HW_kernelApi kernelApi;
+
+/*组装reg*/
 static inline u32 HW_encodeCtrlReg(HW_breakpointCtrlReg ctrl)
 {
     u32 val = (ctrl.mask << 24) | (ctrl.len << 5) | (ctrl.type << 3) | (ctrl.privilege << 1) | ctrl.enabled;
@@ -155,14 +190,14 @@ static inline void HW_decodeCtrlReg(u32 reg, HW_breakpointCtrlReg *ctrl)
 /* Determine number of BRP registers available. */
 static inline int HW_getNumBrps(void)
 {
-    u64 dfr0 = read_sanitised_ftr_reg(SYS_ID_AA64DFR0_EL1);
+    u64 dfr0 = kernelApi.fun.read_sanitised_ftr_reg(SYS_ID_AA64DFR0_EL1);
     return 1 + cpuid_feature_extract_unsigned_field(dfr0, ID_AA64DFR0_BRPS_SHIFT);
 }
 
 /* Determine number of WRP registers available. */
 static inline int HW_getNumWrps(void)
 {
-    u64 dfr0 = read_sanitised_ftr_reg(SYS_ID_AA64DFR0_EL1);
+    u64 dfr0 = kernelApi.fun.read_sanitised_ftr_reg(SYS_ID_AA64DFR0_EL1);
     return 1 + cpuid_feature_extract_unsigned_field(dfr0, ID_AA64DFR0_WRPS_SHIFT);
 }
 

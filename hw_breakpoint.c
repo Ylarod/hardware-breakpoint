@@ -1,15 +1,11 @@
 #include "hw_breakpoint.h"
 #include <linux/module.h>
-#include <asm/system_misc.h>
 #include "asm/uaccess.h"
 #include <asm-generic/kprobes.h>
-#include <asm/debug-monitors.h>
-#include <linux/kgdb.h>
-#include <linux/sched/debug.h>
 #include "hw_breakpointApi.h"
 #include "hw_proc.h"
 #include "hw_breakpointManage.h"
-#include "linux/kernel.h"
+#include "linux/kallsyms.h"
 
 enum hw_breakpoint_ops
 {
@@ -28,8 +24,10 @@ static DEFINE_PER_CPU(struct HW_breakpointInfo *, wp_on_reg[ARM_MAX_WRP]);
 static DEFINE_PER_CPU(int, stepping_kernel_bp);
 
 /* Number of BRP/WRP registers on this CPU. */
-static int core_num_brps;
-static int core_num_wrps;
+static int   core_num_brps;
+static int   core_num_wrps;
+
+HW_kernelApi kernelApi;
 
 /*获取断点数量*/
 int HW_getBreakpointNum(int type)
@@ -248,7 +246,7 @@ static int HW_breakpointControl(struct HW_breakpointInfo *bp, enum hw_breakpoint
      * Ensure debug monitors are enabled at the correct exception
      * level.
      */
-            enable_debug_monitors(dbg_el);
+            kernelApi.fun.enable_debug_monitors(dbg_el);
             /* Fall through */
         case HW_BREAKPOINT_RESTORE:
             /* Setup the address register. */
@@ -267,7 +265,7 @@ static int HW_breakpointControl(struct HW_breakpointInfo *bp, enum hw_breakpoint
      * Release the debug monitors for the correct exception
      * level.
      */
-            disable_debug_monitors(dbg_el);
+            kernelApi.fun.disable_debug_monitors(dbg_el);
             break;
     }
 
@@ -593,7 +591,7 @@ static int HW_breakpointHandler(unsigned long unused, unsigned int esr, struct p
 
         HW_counterArchbp(bp)->trigger = addr;
         printk("bp is triger = 0x%llx, addr = 0x%llx, len = %d\n", addr, bp->attr.addr, bp->attr.len);
-        show_regs(regs);
+        kernelApi.fun.show_regs(regs);
         HW_counterArchbp(bp)->trigger = 0;
 
     unlock:
@@ -606,14 +604,14 @@ static int HW_breakpointHandler(unsigned long unused, unsigned int esr, struct p
     if (*kernel_step != ARM_KERNEL_STEP_NONE)
         return 0;
 
-    if (kernel_active_single_step())
+    if (kernelApi.fun.kernel_active_single_step())
     {
         *kernel_step = ARM_KERNEL_STEP_SUSPEND;
     }
     else
     {
         *kernel_step = ARM_KERNEL_STEP_ACTIVE;
-        kernel_enable_single_step(regs);
+        kernelApi.fun.kernel_enable_single_step(regs);
     }
     // }
 
@@ -720,7 +718,7 @@ static int HW_watchpointHandler(unsigned long addr, unsigned int esr, struct pt_
         {
             /*在期望检测的地址范围之内，才打印堆栈信息*/
             printk("wp is triger = 0x%llx, addr = 0x%llx, len = %d\n", addr, wp->attr.addr, wp->attr.len);
-            show_regs(regs);
+            kernelApi.fun.show_regs(regs);
         }
         info->trigger = 0;
     }
@@ -728,7 +726,7 @@ static int HW_watchpointHandler(unsigned long addr, unsigned int esr, struct pt_
     if (*kernel_step != ARM_KERNEL_STEP_NONE)
         return 0;
 
-    if (kernel_active_single_step())
+    if (kernelApi.fun.kernel_active_single_step())
     {
         *kernel_step = ARM_KERNEL_STEP_SUSPEND;
     }
@@ -736,7 +734,7 @@ static int HW_watchpointHandler(unsigned long addr, unsigned int esr, struct pt_
     {
         *kernel_step = ARM_KERNEL_STEP_ACTIVE;
         /*在当前regs触发step异常*/
-        kernel_enable_single_step(regs);
+        kernelApi.fun.kernel_enable_single_step(regs);
     }
     // }
 
@@ -762,7 +760,7 @@ int HW_breakpointReinstall(struct pt_regs *regs)
 
         if (*kernel_step != ARM_KERNEL_STEP_SUSPEND)
         {
-            kernel_disable_single_step();
+            kernelApi.fun.kernel_disable_single_step();
             handled_exception = 1;
         }
         else
@@ -855,23 +853,137 @@ NOKPROBE_SYMBOL(HW_stepBrkFn);
 
 static struct step_hook gHwStepHook = {.fn = HW_stepBrkFn};
 
+/*获取驱动必须的内核接口*/
+static int HW_getKernelApi(void)
+{
+    memset(&kernelApi, 0, sizeof(kernelApi));
+    kernelApi.val.debug_fault_info = (void *)kallsyms_lookup_name("debug_fault_info");
+    if (!kernelApi.val.debug_fault_info)
+    {
+        printk("get debug_fault_info fail\n");
+        return -1;
+    }
+    // printk("debug_fault_info = %llx,name = %s\n", &kernelApi.val.debug_fault_info[0],
+    //        kernelApi.val.debug_fault_info[0].name);
+    // printk("debug_fault_info = %llx,name = %s\n", &kernelApi.val.debug_fault_info[2],
+    //        kernelApi.val.debug_fault_info[2].name);
+    kernelApi.val.hw_breakpoint_restore = (void *)kallsyms_lookup_name("hw_breakpoint_restore");
+    if (!kernelApi.val.hw_breakpoint_restore)
+    {
+        printk("get hw_breakpoint_restore fail\n");
+        return -1;
+    }
+    // printk("hw_breakpoint_restore = %llx,%llx\n", kernelApi.val.hw_breakpoint_restore,
+    //        *kernelApi.val.hw_breakpoint_restore);
+    kernelApi.fun.kernel_active_single_step = (void *)kallsyms_lookup_name("kernel_active_single_step");
+    if (!kernelApi.fun.kernel_active_single_step)
+    {
+        printk("get kernel_active_single_step fail\n");
+        return -1;
+    }
+    kernelApi.fun.kernel_disable_single_step = (void *)kallsyms_lookup_name("kernel_disable_single_step");
+    if (!kernelApi.fun.kernel_disable_single_step)
+    {
+        printk("get kernel_disable_single_step fail\n");
+        return -1;
+    }
+    kernelApi.fun.kernel_enable_single_step = (void *)kallsyms_lookup_name("kernel_enable_single_step");
+    if (!kernelApi.fun.kernel_enable_single_step)
+    {
+        printk("get kernel_enable_single_step fail\n");
+        return -1;
+    }
+    kernelApi.fun.disable_debug_monitors = (void *)kallsyms_lookup_name("disable_debug_monitors");
+    if (!kernelApi.fun.disable_debug_monitors)
+    {
+        printk("get disable_debug_monitors fail\n");
+        return -1;
+    }
+    kernelApi.fun.do_bad = (void *)kallsyms_lookup_name("do_bad");
+    if (!kernelApi.fun.do_bad)
+    {
+        printk("get do_bad fail\n");
+        return -1;
+    }
+    kernelApi.fun.enable_debug_monitors = (void *)kallsyms_lookup_name("enable_debug_monitors");
+    if (!kernelApi.fun.enable_debug_monitors)
+    {
+        printk("get enable_debug_monitors fail\n");
+        return -1;
+    }
+    kernelApi.fun.read_sanitised_ftr_reg = (void *)kallsyms_lookup_name("read_sanitised_ftr_reg");
+    if (!kernelApi.fun.read_sanitised_ftr_reg)
+    {
+        printk("get read_sanitised_ftr_reg fail\n");
+        return -1;
+    }
+    kernelApi.fun.show_regs = (void *)kallsyms_lookup_name("show_regs");
+    if (!kernelApi.fun.show_regs)
+    {
+        printk("get show_regs fail\n");
+        return -1;
+    }
+    /*5.0以下内核用的是register_step_hook*/
+    kernelApi.fun.register_step_hook = (void *)kallsyms_lookup_name("register_step_hook");
+    if (!kernelApi.fun.register_step_hook)
+    {
+        /*5.0以上内核用的是register_kernel_step_hook*/
+        kernelApi.fun.register_step_hook = (void *)kallsyms_lookup_name("register_kernel_step_hook");
+        if (!kernelApi.fun.register_step_hook)
+        {
+            printk("get register_step_hook fail\n");
+            return -1;
+        }
+    }
+    kernelApi.fun.unregister_step_hook = (void *)kallsyms_lookup_name("unregister_step_hook");
+    if (!kernelApi.fun.unregister_step_hook)
+    {
+        kernelApi.fun.unregister_step_hook = (void *)kallsyms_lookup_name("unregister_kernel_step_hook");
+        if (!kernelApi.fun.unregister_step_hook)
+        {
+            printk("get unregister_step_hook fail\n");
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 /*驱动初始化*/
 static int __init HW_breakpointInit(void)
 {
-    int ret       = 0;
+    int ret = 0;
+
+    if (HW_getKernelApi())
+    {
+        return -1;
+    }
+    /*计算断点数量*/
 
     core_num_brps = HW_getNumBrps();
     core_num_wrps = HW_getNumWrps();
 
     printk("found %d breakpoint and %d watchpoint registers.\n", core_num_brps, core_num_wrps);
 
-    /* Register debug fault handlers. */
-    hook_debug_fault_code(DBG_ESR_EVT_HWBP, HW_breakpointHandler, SIGTRAP, TRAP_HWBKPT, "hw-breakpoint handler");
-    hook_debug_fault_code(DBG_ESR_EVT_HWWP, HW_watchpointHandler, SIGTRAP, TRAP_HWBKPT, "hw-watchpoint handler");
-    register_step_hook(&gHwStepHook);
-
-    /* Register cpu_suspend hw breakpoint restore hook */
-    cpu_suspend_set_dbg_restorer(HW_breakpointReset);
+    /* 注册调试异常回调函数 */
+    /*执行断点*/
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].fn   = HW_breakpointHandler;
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].sig  = SIGTRAP;
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].code = TRAP_HWBKPT;
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].name = "hw-breakpoint handler";
+    /*内存断点*/
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].fn   = HW_watchpointHandler;
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].sig  = SIGTRAP;
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].code = TRAP_HWBKPT;
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].name = "hw-watchpoint handler";
+    // hook_debug_fault_code(DBG_ESR_EVT_HWBP, HW_breakpointHandler, SIGTRAP, TRAP_HWBKPT,
+    //                       "hw-breakpoint handler");
+    // hook_debug_fault_code(DBG_ESR_EVT_HWWP, HW_watchpointHandler, SIGTRAP, TRAP_HWBKPT,
+    //                       "hw-watchpoint handler");
+    kernelApi.fun.register_step_hook(&gHwStepHook);
+    /*注册cpu暂停后恢复断点的回调函数*/
+    *kernelApi.val.hw_breakpoint_restore = (u64)HW_breakpointReset;
+    // cpu_suspend_set_dbg_restorer(HW_breakpointReset);
 
     HW_bpManageInit();
     hw_proc_init();
@@ -884,7 +996,18 @@ static void __exit HW_breakpointExit(void)
 {
     hw_proc_exit();
     HW_bpManageDeInit();
-    unregister_step_hook(&gHwStepHook);
+    *kernelApi.val.hw_breakpoint_restore = 0;
+    kernelApi.fun.unregister_step_hook(&gHwStepHook);
+    /*内存断点*/
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].fn   = (void *)kernelApi.fun.do_bad;
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].sig  = SIGTRAP;
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].code = TRAP_HWBKPT;
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].name = NULL;
+    /*执行断点*/
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].fn   = (void *)kernelApi.fun.do_bad;
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].sig  = SIGTRAP;
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].code = TRAP_HWBKPT;
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].name = NULL;
     printk(" HW_breakpointExit\n");
 }
 
