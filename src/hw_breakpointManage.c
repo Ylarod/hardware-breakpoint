@@ -375,7 +375,7 @@ int HW_breakpointInstallFromSymbol(char *name, int len, int type)
         return -1;
     }
 
-    addr = kallsyms_lookup_name(name);
+    addr = kernelApi.fun.kallsyms_lookup_name(name);
     if (0 == addr)
     {
         /*无法找到该符号的地址*/
@@ -449,7 +449,7 @@ void HW_breakpointUnInstallFromSymbol(char *name)
         return;
     }
 
-    addr = kallsyms_lookup_name(name);
+    addr = kernelApi.fun.kallsyms_lookup_name(name);
     if (0 == addr)
     {
         /*无法找到该符号的地址*/

@@ -6,6 +6,7 @@
 #include "hw_proc.h"
 #include "hw_breakpointManage.h"
 #include "linux/kallsyms.h"
+#include "linux/slab.h"
 
 enum hw_breakpoint_ops
 {
@@ -853,11 +854,107 @@ NOKPROBE_SYMBOL(HW_stepBrkFn);
 
 static struct step_hook gHwStepHook = {.fn = HW_stepBrkFn};
 
+/*根据名字找函数地址*/
+unsigned long kaddr_lookup_name(const char *fname_raw)
+{
+    int           i;
+    unsigned long kaddr;
+    char         *fname_lookup, *fname;
+
+    fname_lookup = kzalloc(NAME_MAX, GFP_KERNEL);
+    if (!fname_lookup)
+        return 0;
+
+    fname = kzalloc(strlen(fname_raw) + 4, GFP_KERNEL);
+    if (!fname)
+        return 0;
+
+    /*
+   * We have to add "+0x0" to the end of our function name
+   * because that's the format that sprint_symbol() returns
+   * to us. If we don't do this, then our search can stop
+   * prematurely and give us the wrong function address!
+   */
+    strcpy(fname, fname_raw);
+    strcat(fname, "+0x0");
+    printk("fname = %s\n", fname);
+
+    /*
+   * Get the kernel base address:
+   * sprint_symbol() is less than 0x100000 from the start of the kernel, so
+   * we can just AND-out the last 3 bytes from it's address to the the base
+   * address.
+   * There might be a better symbol-name to use?
+   */
+    kaddr = (unsigned long)&sprint_symbol;
+    printk("sprint_symbol = 0x%lx\n", kaddr);
+    kaddr &= 0xffffffffff000000;
+    printk("kaddr = 0x%lx\n", kaddr);
+
+    /*
+   * All the syscalls (and all interesting kernel functions I've seen so far)
+   * are within the first 0x100000 bytes of the base address. However, the kernel
+   * functions are all aligned so that the final nibble is 0x0, so we only
+   * have to check every 16th address.
+   */
+    for (i = 0x0; i < 0x400000; i++)
+    {
+        /*
+       * Lookup the name ascribed to the current kernel address
+       */
+        sprint_symbol(fname_lookup, kaddr);
+        // if (kaddr>(u64)&kallsyms_lookup_name)
+        // {
+        //     printk("fname_lookup = %s\n",fname_lookup);
+        // }
+        /*
+       * Compare the looked-up name to the one we want
+       */
+        if (strncmp(fname_lookup, fname, strlen(fname)) == 0)
+        {
+            /*
+           * Clean up and return the found address
+           */
+            kfree(fname_lookup);
+            kfree(fname);
+            printk("kaddr = 0x%lx\n", kaddr);
+            return kaddr;
+        }
+        /*
+       * Jump 16 addresses to next possible address
+       */
+        kaddr += 0x04;
+    }
+    /*
+   * We didn't find the name, so clean up and return 0
+   */
+    kfree(fname_lookup);
+    kfree(fname);
+    printk("kaddr = 0x%lx\n", kaddr);
+    return 0;
+}
+
+/*获取驱动必须的内核接口*/
+static int HW_getKallsymsLookupName(void)
+{
+    kernelApi.fun.kallsyms_lookup_name = (void *)kaddr_lookup_name("kallsyms_lookup_name");
+    if (!kernelApi.fun.kallsyms_lookup_name)
+    {
+        printk("get kallsyms_lookup_name fail \n");
+        return -1;
+    }
+    return 0;
+}
+
 /*获取驱动必须的内核接口*/
 static int HW_getKernelApi(void)
 {
     memset(&kernelApi, 0, sizeof(kernelApi));
-    kernelApi.val.debug_fault_info = (void *)kallsyms_lookup_name("debug_fault_info");
+    if (HW_getKallsymsLookupName())
+    {
+        return -1;
+    }
+    kernelApi.val.debug_fault_info = (void *)kernelApi.fun.kallsyms_lookup_name("debug_fault_info");
     if (!kernelApi.val.debug_fault_info)
     {
         printk("get debug_fault_info fail\n");
@@ -867,7 +964,7 @@ static int HW_getKernelApi(void)
     //        kernelApi.val.debug_fault_info[0].name);
     // printk("debug_fault_info = %llx,name = %s\n", &kernelApi.val.debug_fault_info[2],
     //        kernelApi.val.debug_fault_info[2].name);
-    kernelApi.val.hw_breakpoint_restore = (void *)kallsyms_lookup_name("hw_breakpoint_restore");
+    kernelApi.val.hw_breakpoint_restore = (void *)kernelApi.fun.kallsyms_lookup_name("hw_breakpoint_restore");
     if (!kernelApi.val.hw_breakpoint_restore)
     {
         printk("get hw_breakpoint_restore fail\n");
@@ -875,70 +972,70 @@ static int HW_getKernelApi(void)
     }
     // printk("hw_breakpoint_restore = %llx,%llx\n", kernelApi.val.hw_breakpoint_restore,
     //        *kernelApi.val.hw_breakpoint_restore);
-    kernelApi.fun.kernel_active_single_step = (void *)kallsyms_lookup_name("kernel_active_single_step");
+    kernelApi.fun.kernel_active_single_step = (void *)kernelApi.fun.kallsyms_lookup_name("kernel_active_single_step");
     if (!kernelApi.fun.kernel_active_single_step)
     {
         printk("get kernel_active_single_step fail\n");
         return -1;
     }
-    kernelApi.fun.kernel_disable_single_step = (void *)kallsyms_lookup_name("kernel_disable_single_step");
+    kernelApi.fun.kernel_disable_single_step = (void *)kernelApi.fun.kallsyms_lookup_name("kernel_disable_single_step");
     if (!kernelApi.fun.kernel_disable_single_step)
     {
         printk("get kernel_disable_single_step fail\n");
         return -1;
     }
-    kernelApi.fun.kernel_enable_single_step = (void *)kallsyms_lookup_name("kernel_enable_single_step");
+    kernelApi.fun.kernel_enable_single_step = (void *)kernelApi.fun.kallsyms_lookup_name("kernel_enable_single_step");
     if (!kernelApi.fun.kernel_enable_single_step)
     {
         printk("get kernel_enable_single_step fail\n");
         return -1;
     }
-    kernelApi.fun.disable_debug_monitors = (void *)kallsyms_lookup_name("disable_debug_monitors");
+    kernelApi.fun.disable_debug_monitors = (void *)kernelApi.fun.kallsyms_lookup_name("disable_debug_monitors");
     if (!kernelApi.fun.disable_debug_monitors)
     {
         printk("get disable_debug_monitors fail\n");
         return -1;
     }
-    kernelApi.fun.do_bad = (void *)kallsyms_lookup_name("do_bad");
+    kernelApi.fun.do_bad = (void *)kernelApi.fun.kallsyms_lookup_name("do_bad");
     if (!kernelApi.fun.do_bad)
     {
         printk("get do_bad fail\n");
         return -1;
     }
-    kernelApi.fun.enable_debug_monitors = (void *)kallsyms_lookup_name("enable_debug_monitors");
+    kernelApi.fun.enable_debug_monitors = (void *)kernelApi.fun.kallsyms_lookup_name("enable_debug_monitors");
     if (!kernelApi.fun.enable_debug_monitors)
     {
         printk("get enable_debug_monitors fail\n");
         return -1;
     }
-    kernelApi.fun.read_sanitised_ftr_reg = (void *)kallsyms_lookup_name("read_sanitised_ftr_reg");
+    kernelApi.fun.read_sanitised_ftr_reg = (void *)kernelApi.fun.kallsyms_lookup_name("read_sanitised_ftr_reg");
     if (!kernelApi.fun.read_sanitised_ftr_reg)
     {
         printk("get read_sanitised_ftr_reg fail\n");
         return -1;
     }
-    kernelApi.fun.show_regs = (void *)kallsyms_lookup_name("show_regs");
+    kernelApi.fun.show_regs = (void *)kernelApi.fun.kallsyms_lookup_name("show_regs");
     if (!kernelApi.fun.show_regs)
     {
         printk("get show_regs fail\n");
         return -1;
     }
     /*5.0以下内核用的是register_step_hook*/
-    kernelApi.fun.register_step_hook = (void *)kallsyms_lookup_name("register_step_hook");
+    kernelApi.fun.register_step_hook = (void *)kernelApi.fun.kallsyms_lookup_name("register_step_hook");
     if (!kernelApi.fun.register_step_hook)
     {
         /*5.0以上内核用的是register_kernel_step_hook*/
-        kernelApi.fun.register_step_hook = (void *)kallsyms_lookup_name("register_kernel_step_hook");
+        kernelApi.fun.register_step_hook = (void *)kernelApi.fun.kallsyms_lookup_name("register_kernel_step_hook");
         if (!kernelApi.fun.register_step_hook)
         {
             printk("get register_step_hook fail\n");
             return -1;
         }
     }
-    kernelApi.fun.unregister_step_hook = (void *)kallsyms_lookup_name("unregister_step_hook");
+    kernelApi.fun.unregister_step_hook = (void *)kernelApi.fun.kallsyms_lookup_name("unregister_step_hook");
     if (!kernelApi.fun.unregister_step_hook)
     {
-        kernelApi.fun.unregister_step_hook = (void *)kallsyms_lookup_name("unregister_kernel_step_hook");
+        kernelApi.fun.unregister_step_hook = (void *)kernelApi.fun.kallsyms_lookup_name("unregister_kernel_step_hook");
         if (!kernelApi.fun.unregister_step_hook)
         {
             printk("get unregister_step_hook fail\n");

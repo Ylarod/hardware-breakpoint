@@ -142,6 +142,7 @@ typedef struct HW_kernelApi
 {
     struct
     {
+        unsigned long (*kallsyms_lookup_name)(const char *name); /*根据符号查询地址函数*/
         void (*register_step_hook)(struct step_hook *hook);      /*注册step调试异常hook的函数*/
         void (*unregister_step_hook)(struct step_hook *hook);    /*取消注册step调试异常hook的函数*/
         void (*enable_debug_monitors)(enum dbg_active_el el);    /*使能debug异常*/
