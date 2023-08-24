@@ -681,7 +681,7 @@ static int HW_watchpointHandler(unsigned long addr, unsigned int esr, struct pt_
         val      = HW_readBreakpointReg(AARCH64_DBG_REG_WVR, i);
         ctrl_reg = HW_readBreakpointReg(AARCH64_DBG_REG_WCR, i);
         HW_decodeCtrlReg(ctrl_reg, &ctrl);
-        dist = HW_getDistanceFromWatchpoint(addr, val, &ctrl);
+        dist = HW_getDistanceFromWatchpoint(addr, wp->attr.addr, &ctrl);
         if (dist < min_dist)
         {
             min_dist      = dist;
@@ -711,7 +711,8 @@ static int HW_watchpointHandler(unsigned long addr, unsigned int esr, struct pt_
     HW_toggleBpRegisters(AARCH64_DBG_REG_WCR, DBG_ACTIVE_EL1, 0);
     kernel_step = this_cpu_ptr(&stepping_kernel_bp);
 
-    // printk("watchpoint is trigger,addr=0x%lx\n", addr);
+    // printk("watchpoint is trigger,addr=0x%lx, close = %d, dist = %d, mindist = %d, info = %lx\n",
+    //        addr, closest_match, dist, min_dist);
     if (info)
     {
         wp = container_of(info, struct HW_breakpointInfo, info);
