@@ -274,11 +274,18 @@ cmdErr:
     return count;
 }
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 1, 10)
+static const struct proc_ops hw_proc_fops = {
+    .proc_read  = hw_proc_read,
+    .proc_write = hw_proc_write,
+};
+#else
 static const struct file_operations hw_proc_fops = {
     .open  = NULL,
     .read  = hw_proc_read,
     .write = hw_proc_write,
 };
+#endif
 
 int hw_proc_init(void)
 {

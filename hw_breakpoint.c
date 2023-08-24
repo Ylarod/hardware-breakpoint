@@ -45,7 +45,7 @@ int HW_getBreakpointNum(int type)
         case TYPE_DATA:
             return HW_getNumWrps();
         default:
-            pr_warning("unknown slot type: %d\n", type);
+            printk("unknown slot type: %d\n", type);
             return 0;
     }
 }
@@ -108,7 +108,7 @@ static u64 HW_readBreakpointReg(int reg, int n)
         GEN_READ_WB_REG_CASES(AARCH64_DBG_REG_WVR, AARCH64_DBG_REG_NAME_WVR, val);
         GEN_READ_WB_REG_CASES(AARCH64_DBG_REG_WCR, AARCH64_DBG_REG_NAME_WCR, val);
         default:
-            pr_warning("attempt to read from unknown breakpoint register %d\n", n);
+            printk("attempt to read from unknown breakpoint register %d\n", n);
     }
 
     return val;
@@ -125,7 +125,7 @@ static void HW_writeBreakpointReg(int reg, int n, u64 val)
         GEN_WRITE_WB_REG_CASES(AARCH64_DBG_REG_WVR, AARCH64_DBG_REG_NAME_WVR, val);
         GEN_WRITE_WB_REG_CASES(AARCH64_DBG_REG_WCR, AARCH64_DBG_REG_NAME_WCR, val);
         default:
-            pr_warning("attempt to write to unknown breakpoint register %d\n", n);
+            printk("attempt to write to unknown breakpoint register %d\n", n);
     }
     /*清空流水线，确保在执行新的指令前，之前的指令都已经完成*/
     isb();
@@ -142,7 +142,7 @@ static enum dbg_active_el HW_getDebugExceptionLevel(int privilege)
         case AARCH64_BREAKPOINT_EL1:
             return DBG_ACTIVE_EL1;
         default:
-            pr_warning("invalid breakpoint privilege level %d\n", privilege);
+            printk("invalid breakpoint privilege level %d\n", privilege);
             return -EINVAL;
     }
 }
@@ -201,7 +201,7 @@ static int HW_breakpointSlotSetup(struct HW_breakpointInfo **slots, int max_slot
                     return i;
                 break;
             default:
-                pr_warn_once("Unhandled hw breakpoint ops %d\n", ops);
+                printk("Unhandled hw breakpoint ops %d\n", ops);
                 return -EINVAL;
         }
     }
@@ -863,7 +863,7 @@ static int __init HW_breakpointInit(void)
     core_num_brps = HW_getNumBrps();
     core_num_wrps = HW_getNumWrps();
 
-    pr_info("found %d breakpoint and %d watchpoint registers.\n", core_num_brps, core_num_wrps);
+    printk("found %d breakpoint and %d watchpoint registers.\n", core_num_brps, core_num_wrps);
 
     /* Register debug fault handlers. */
     hook_debug_fault_code(DBG_ESR_EVT_HWBP, HW_breakpointHandler, SIGTRAP, TRAP_HWBKPT, "hw-breakpoint handler");
@@ -876,7 +876,7 @@ static int __init HW_breakpointInit(void)
     HW_bpManageInit();
     hw_proc_init();
 
-    pr_info("HW_breakpointInit\n");
+    printk("HW_breakpointInit\n");
     return 0;
 }
 
@@ -885,7 +885,7 @@ static void __exit HW_breakpointExit(void)
     hw_proc_exit();
     HW_bpManageDeInit();
     unregister_step_hook(&gHwStepHook);
-    pr_info(" HW_breakpointExit\n");
+    printk(" HW_breakpointExit\n");
 }
 
 module_init(HW_breakpointInit);
