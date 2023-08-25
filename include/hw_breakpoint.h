@@ -156,8 +156,10 @@ typedef struct HW_kernelApi
     } fun;
     struct
     {
-        u64               *hw_breakpoint_restore; /*cpu从调试暂停恢复运行时执行的函数*/
-        struct fault_info *debug_fault_info;      /*接管硬件断点调试异常中断，替换回调函数*/
+        u64               *hw_breakpoint_restore;         /*cpu从调试暂停恢复运行时执行的函数*/
+        u64                default_hw_breakpoint_restore; /*接管之前的函数地址*/
+        struct fault_info *debug_fault_info;              /*接管硬件断点调试异常中断，替换回调函数*/
+        struct fault_info  default_fault_info[2];         /*接管之前的数据信息*/
     } val;
 
 } HW_kernelApi;

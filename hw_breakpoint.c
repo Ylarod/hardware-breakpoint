@@ -877,60 +877,30 @@ unsigned long kaddr_lookup_name(const char *fname_raw)
    */
     strcpy(fname, fname_raw);
     strcat(fname, "+0x0");
-    printk("fname = %s\n", fname);
 
-    /*
-   * Get the kernel base address:
-   * sprint_symbol() is less than 0x100000 from the start of the kernel, so
-   * we can just AND-out the last 3 bytes from it's address to the the base
-   * address.
-   * There might be a better symbol-name to use?
-   */
+    /*获取内核代码段基地址*/
     kaddr = (unsigned long)&sprint_symbol;
-    printk("sprint_symbol = 0x%lx\n", kaddr);
     kaddr &= 0xffffffffff000000;
-    printk("kaddr = 0x%lx\n", kaddr);
 
-    /*
-   * All the syscalls (and all interesting kernel functions I've seen so far)
-   * are within the first 0x100000 bytes of the base address. However, the kernel
-   * functions are all aligned so that the final nibble is 0x0, so we only
-   * have to check every 16th address.
-   */
+    /*内核符号不会超过0x100000*16的大小，所以按4字节偏移，挨个找*/
     for (i = 0x0; i < 0x400000; i++)
     {
-        /*
-       * Lookup the name ascribed to the current kernel address
-       */
+        /*寻找地址对应的符号名称*/
         sprint_symbol(fname_lookup, kaddr);
-        // if (kaddr>(u64)&kallsyms_lookup_name)
-        // {
-        //     printk("fname_lookup = %s\n",fname_lookup);
-        // }
-        /*
-       * Compare the looked-up name to the one we want
-       */
+        /*对比寻找的符号名字*/
         if (strncmp(fname_lookup, fname, strlen(fname)) == 0)
         {
-            /*
-           * Clean up and return the found address
-           */
+            /*找到了就返回地址*/
             kfree(fname_lookup);
             kfree(fname);
-            printk("kaddr = 0x%lx\n", kaddr);
             return kaddr;
         }
-        /*
-       * Jump 16 addresses to next possible address
-       */
+        /*偏移4字节*/
         kaddr += 0x04;
     }
-    /*
-   * We didn't find the name, so clean up and return 0
-   */
+    /*没找到地址就返回0*/
     kfree(fname_lookup);
     kfree(fname);
-    printk("kaddr = 0x%lx\n", kaddr);
     return 0;
 }
 
@@ -1064,23 +1034,32 @@ static int __init HW_breakpointInit(void)
 
     /* 注册调试异常回调函数 */
     /*执行断点*/
+    /*保存原先的变量*/
+    kernelApi.val.default_fault_info[0].fn   = kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].fn;
+    kernelApi.val.default_fault_info[0].sig  = kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].sig;
+    kernelApi.val.default_fault_info[0].code = kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].code;
+    kernelApi.val.default_fault_info[0].name = kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].name;
+    /*注册新的内容*/
     kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].fn   = HW_breakpointHandler;
     kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].sig  = SIGTRAP;
     kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].code = TRAP_HWBKPT;
     kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].name = "hw-breakpoint handler";
     /*内存断点*/
+    /*保存原先的变量*/
+    kernelApi.val.default_fault_info[1].fn   = kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].fn;
+    kernelApi.val.default_fault_info[1].sig  = kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].sig;
+    kernelApi.val.default_fault_info[1].code = kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].code;
+    kernelApi.val.default_fault_info[1].name = kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].name;
+    /*注册新的内容*/
     kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].fn   = HW_watchpointHandler;
     kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].sig  = SIGTRAP;
     kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].code = TRAP_HWBKPT;
     kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].name = "hw-watchpoint handler";
-    // hook_debug_fault_code(DBG_ESR_EVT_HWBP, HW_breakpointHandler, SIGTRAP, TRAP_HWBKPT,
-    //                       "hw-breakpoint handler");
-    // hook_debug_fault_code(DBG_ESR_EVT_HWWP, HW_watchpointHandler, SIGTRAP, TRAP_HWBKPT,
-    //                       "hw-watchpoint handler");
     kernelApi.fun.register_step_hook(&gHwStepHook);
     /*注册cpu暂停后恢复断点的回调函数*/
-    *kernelApi.val.hw_breakpoint_restore = (u64)HW_breakpointReset;
-    // cpu_suspend_set_dbg_restorer(HW_breakpointReset);
+    /*保存原先的变量*/
+    kernelApi.val.default_hw_breakpoint_restore = *kernelApi.val.hw_breakpoint_restore;
+    *kernelApi.val.hw_breakpoint_restore        = (u64)HW_breakpointReset;
 
     HW_bpManageInit();
     hw_proc_init();
@@ -1093,18 +1072,18 @@ static void __exit HW_breakpointExit(void)
 {
     hw_proc_exit();
     HW_bpManageDeInit();
-    *kernelApi.val.hw_breakpoint_restore = 0;
+    *kernelApi.val.hw_breakpoint_restore = kernelApi.val.default_hw_breakpoint_restore;
     kernelApi.fun.unregister_step_hook(&gHwStepHook);
     /*内存断点*/
-    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].fn   = (void *)kernelApi.fun.do_bad;
-    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].sig  = SIGTRAP;
-    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].code = TRAP_HWBKPT;
-    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].name = NULL;
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].fn   = kernelApi.val.default_fault_info[1].fn;
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].sig  = kernelApi.val.default_fault_info[1].sig;
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].code = kernelApi.val.default_fault_info[1].code;
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].name = kernelApi.val.default_fault_info[1].name;
     /*执行断点*/
-    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].fn   = (void *)kernelApi.fun.do_bad;
-    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].sig  = SIGTRAP;
-    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].code = TRAP_HWBKPT;
-    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].name = NULL;
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].fn   = kernelApi.val.default_fault_info[0].fn;
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].sig  = kernelApi.val.default_fault_info[0].sig;
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].code = kernelApi.val.default_fault_info[0].code;
+    kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWBP].name = kernelApi.val.default_fault_info[0].name;
     printk(" HW_breakpointExit\n");
 }
 
