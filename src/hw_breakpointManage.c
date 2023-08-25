@@ -234,7 +234,7 @@ int HW_breakpointInstallFromAddr(u64 addr, int len, int type)
     u64                     startAddr, endAddr;
     u64                     alignment_mask = 0, realLen = len, offset;
 
-    if ((0 == addr))
+    if ((0 == addr) || (addr < TASK_SIZE))
     {
         printk("HW_breakpointInstallFromAddr para is error\n");
         return -1;

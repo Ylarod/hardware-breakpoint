@@ -21,25 +21,26 @@ static struct proc_dir_entry *proc_file = NULL;
 //帮助
 char *test_proc_write_usag    = {"Usage:\n"
                                     "\thw_break support cmd type: \n"
-                                    "\t\t1: echo add <type> <len> <symbol> > /proc/breakpoint, add a breakpoint\n"
+                                    "\t\t1: echo add <type> <len> <symbol>/<addr> > /proc/breakpoint, add a breakpoint\n"
                                     "\t\t\t[type]:\n"
                                     "\t\t\t\t[wp1]: HW_BREAKPOINT_R\n"
                                     "\t\t\t\t[wp2]: HW_BREAKPOINT_W\n"
                                     "\t\t\t\t[wp3]: HW_BREAKPOINT_R|HW_BREAKPOINT_W\n"
                                     "\t\t\t\t[bp]:  HW_BREAKPOINT_X\n"
                                     "t\t\t[len]:[0,8] (2^3,2^31]\n"
-                                    "\t\t2: echo del <symbol> > /proc/breakpoint, del a breakpoint\n"};
+                                    "\t\t2: echo del <symbol> > /proc/breakpoint, del a breakpoint\n"
+                                    "\t\t3: echo get ptr/val <symbol> > /proc/breakpoint, search &symbol/*(&symbol)\n"};
 char *test_proc_write_example = {"Example:\n"
                                  "\tThe first step:\n"
-                                 "\t\techo add wp3 4 zwf_test_value > /proc/breakpoint, add a watchpoint at "
-                                 "&zwf_test_value\n"
+                                 "\t\techo add wp3 4 zwf_test_value0 > /proc/breakpoint, add a watchpoint at "
+                                 "&zwf_test_value0\n"
                                  "\tThe second step:\n"
-                                 "\t\techo write > /proc/breakpoint, write zwf_test_value\n"
+                                 "\t\techo write 0 0 > /proc/breakpoint, write zwf_test_value0\n"
                                  "\tThe third step:\n"
-                                 "\t\techo read > /proc/breakpoint, read zwf_test_value\n"
+                                 "\t\techo read 0 0 > /proc/breakpoint, read zwf_test_value0\n"
                                  "\tThe forth step:\n"
-                                 "\t\techo del zwf_test_value > /proc/breakpoint, del wawtchpoint at "
-                                 "&zwf_test_value\n"};
+                                 "\t\techo del zwf_test_value0 > /proc/breakpoint, del wawtchpoint at "
+                                 "&zwf_test_value0\n"};
 /*******************************************************************************
 * 函数名  : print_cmd_params
 * 描  述  : 打印cmd的一些参数信息
@@ -108,7 +109,8 @@ static ssize_t hw_proc_write(struct file *file, const char __user *pBuf, size_t 
     char   cmdBuf[128] = {0};
     size_t ret;
     int    argc = 0, type = 0;
-    char  *argv[10] = {NULL};
+    char  *argv[10]    = {NULL};
+    u64    installAddr = 0;
 
     // printk("hw_proc_write\n");
 
@@ -135,6 +137,10 @@ static ssize_t hw_proc_write(struct file *file, const char __user *pBuf, size_t 
 
     if (strcmp("write", argv[0]) == 0)
     {
+        if (argc != 3)
+        {
+            goto cmdErr;
+        }
         char *end;
         int   index  = simple_strtol(argv[1], &end, 0);
         int   index1 = simple_strtol(argv[2], &end, 0);
@@ -170,6 +176,10 @@ static ssize_t hw_proc_write(struct file *file, const char __user *pBuf, size_t 
     }
     else if (strcmp("read", argv[0]) == 0)
     {
+        if (argc != 3)
+        {
+            goto cmdErr;
+        }
         char *end;
         int   index  = simple_strtol(argv[1], &end, 0);
         int   index1 = simple_strtol(argv[2], &end, 0);
@@ -218,7 +228,7 @@ static ssize_t hw_proc_write(struct file *file, const char __user *pBuf, size_t 
     {
         char *name = NULL;
         int   len  = HW_BREAKPOINT_LEN_4;
-        if (argc < 3)
+        if (argc != 4)
         {
             // printk("argc = %d\n",argc);
             goto cmdErr;
@@ -252,7 +262,20 @@ static ssize_t hw_proc_write(struct file *file, const char __user *pBuf, size_t 
         {
             goto cmdErr;
         }
-        HW_breakpointInstallFromSymbol(name, len, type);
+        if (argv[3][0] == '0' && argv[3][1] == 'x')
+        {
+            installAddr = simple_strtol(argv[3], 0, 0);
+        }
+        if (installAddr)
+        {
+            printk("will install at 0x%llx\n", installAddr);
+            HW_breakpointInstallFromAddr(installAddr, len, type);
+        }
+        else
+        {
+            printk("will install at &%s\n", name);
+            HW_breakpointInstallFromSymbol(name, len, type);
+        }
     }
     else if (strcmp("del", argv[0]) == 0)
     {
@@ -261,7 +284,46 @@ static ssize_t hw_proc_write(struct file *file, const char __user *pBuf, size_t 
             // printk("argc = %d\n",argc);
             goto cmdErr;
         }
-        HW_breakpointUnInstallFromSymbol(argv[1]);
+        if (argv[1][0] == '0' && argv[1][1] == 'x')
+        {
+            installAddr = simple_strtol(argv[1], 0, 0);
+        }
+        if (installAddr)
+        {
+            printk("will uninstall at 0x%llx\n", installAddr);
+            HW_breakpointUnInstallFromAddr(installAddr);
+        }
+        else
+        {
+            printk("will uninstall at &%s\n", argv[1]);
+            HW_breakpointUnInstallFromSymbol(argv[1]);
+        }
+    }
+    else if (strcmp("get", argv[0]) == 0)
+    {
+        if (argc != 3)
+        {
+            // printk("argc = %d\n",argc);
+            goto cmdErr;
+        }
+        installAddr = kernelApi.fun.kallsyms_lookup_name(argv[2]);
+        if (!installAddr || installAddr < TASK_SIZE)
+        {
+            printk("can not find symbol %s\n", argv[2]);
+            return count;
+        }
+        if (strcmp("ptr", argv[1]) == 0)
+        {
+            printk("&%s = 0x%llx\n", argv[2], installAddr);
+        }
+        else if (strcmp("val", argv[1]) == 0)
+        {
+            printk("*(%s) = 0x%llx\n", argv[2], *((u64 *)installAddr));
+        }
+        else
+        {
+            goto cmdErr;
+        }
     }
     else
     {
