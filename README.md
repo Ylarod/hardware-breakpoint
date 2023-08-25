@@ -2,7 +2,7 @@
  * @Author: zwf 240970521@qq.com
  * @Date: 2023-08-23 22:03:49
  * @LastEditors: zwf 240970521@qq.com
- * @LastEditTime: 2023-08-24 19:31:37
+ * @LastEditTime: 2023-08-25 22:36:11
  * @FilePath: /hardware-breakpoint/README.md
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 -->
@@ -30,7 +30,12 @@ Linux内核自带的硬件断点是跟很多业务捆绑的，开启硬件断点
 ~~8. `register_step_hook`~~
 ~~9. `show_regs`~~
 ~~10. `enable_debug_monitors`~~
-现在4.19之后的内核皆可直接插入，无需任何依赖
+现在4.19之后的内核皆可直接插入，不再依赖符号的导出。
+运行依赖：
+1. `CONFIG_KALLSYMS=y`
+2. `CONFIG_KALLSYMS_ALL=y`
+   
+
 
 # 硬件断点驱动详解
 

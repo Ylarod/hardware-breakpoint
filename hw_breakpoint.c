@@ -822,14 +822,6 @@ static int HW_breakpointReset(unsigned int cpu)
     return 0;
 }
 
-#ifdef CONFIG_CPU_PM
-extern void cpu_suspend_set_dbg_restorer(int (*hw_bp_restore)(unsigned int));
-#else
-static inline void cpu_suspend_set_dbg_restorer(int (*hw_bp_restore)(unsigned int))
-{
-}
-#endif
-
 /*单步异常回调函数，该函数将重新开启被关闭的断点*/
 static int HW_stepBrkFn(struct pt_regs *regs, unsigned int esr)
 {
@@ -934,6 +926,7 @@ static int HW_getKernelApi(void)
     //        kernelApi.val.debug_fault_info[0].name);
     // printk("debug_fault_info = %llx,name = %s\n", &kernelApi.val.debug_fault_info[2],
     //        kernelApi.val.debug_fault_info[2].name);
+#ifdef CONFIG_CPU_PM
     kernelApi.val.hw_breakpoint_restore = (void *)kernelApi.fun.kallsyms_lookup_name("hw_breakpoint_restore");
     if (!kernelApi.val.hw_breakpoint_restore)
     {
@@ -942,6 +935,7 @@ static int HW_getKernelApi(void)
     }
     // printk("hw_breakpoint_restore = %llx,%llx\n", kernelApi.val.hw_breakpoint_restore,
     //        *kernelApi.val.hw_breakpoint_restore);
+#endif
     kernelApi.fun.kernel_active_single_step = (void *)kernelApi.fun.kallsyms_lookup_name("kernel_active_single_step");
     if (!kernelApi.fun.kernel_active_single_step)
     {
@@ -1056,11 +1050,12 @@ static int __init HW_breakpointInit(void)
     kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].code = TRAP_HWBKPT;
     kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].name = "hw-watchpoint handler";
     kernelApi.fun.register_step_hook(&gHwStepHook);
+#ifdef CONFIG_CPU_PM
     /*注册cpu暂停后恢复断点的回调函数*/
     /*保存原先的变量*/
     kernelApi.val.default_hw_breakpoint_restore = *kernelApi.val.hw_breakpoint_restore;
     *kernelApi.val.hw_breakpoint_restore        = (u64)HW_breakpointReset;
-
+#endif
     HW_bpManageInit();
     hw_proc_init();
 
@@ -1072,7 +1067,9 @@ static void __exit HW_breakpointExit(void)
 {
     hw_proc_exit();
     HW_bpManageDeInit();
+#ifdef CONFIG_CPU_PM
     *kernelApi.val.hw_breakpoint_restore = kernelApi.val.default_hw_breakpoint_restore;
+#endif
     kernelApi.fun.unregister_step_hook(&gHwStepHook);
     /*内存断点*/
     kernelApi.val.debug_fault_info[DBG_ESR_EVT_HWWP].fn   = kernelApi.val.default_fault_info[1].fn;
