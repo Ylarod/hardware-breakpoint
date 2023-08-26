@@ -152,6 +152,7 @@ typedef struct HW_kernelApi
         void (*kernel_disable_single_step)(void);                /*失能单步调试异常*/
         u64 (*read_sanitised_ftr_reg)(u32 id);                   /*读ftr寄存器*/
         void (*show_regs)(struct pt_regs *);                     /*显示堆栈*/
+        void (*dump_backtrace)(struct pt_regs *regs, struct task_struct *tsk);/**/
         void (*do_bad)(unsigned long addr, unsigned int esr, struct pt_regs *regs); /*调试异常的默认中断处理函数*/
     } __aligned(128) fun;
     struct

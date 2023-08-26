@@ -591,9 +591,6 @@ static int HW_breakpointHandler(unsigned long unused, unsigned int esr, struct p
             goto unlock;
 
         HW_counterArchbp(bp)->trigger = addr;
-        printk("bp is triger = 0x%llx, addr = 0x%llx, len = %d\n", addr, bp->attr.addr, bp->attr.len);
-        kernelApi.fun.show_regs(regs);
-        HW_counterArchbp(bp)->trigger = 0;
 
     unlock:
         rcu_read_unlock();
@@ -650,17 +647,13 @@ static int HW_watchpointHandler(unsigned long addr, unsigned int esr, struct pt_
     u32                       ctrl_reg;
     u64                       val, startAddr, endAddr;
     struct HW_breakpointInfo *wp, **slots;
-    // struct debug_info *debug_info;
-    HW_breakpointVC     *info = NULL;
-    HW_breakpointCtrlReg ctrl;
+    HW_breakpointVC          *info = NULL;
+    HW_breakpointCtrlReg      ctrl;
 
     slots = this_cpu_ptr(wp_on_reg);
     // debug_info = &current->thread.debug;
 
-    /*
-     * Find all watchpoints that match the reported address. If no exact
-     * match is found. Attribute the hit to the closest watchpoint.
-     */
+    /*寻找最近的触发地址*/
     rcu_read_lock();
     for (i = 0; i < core_num_wrps; ++i)
     {
@@ -668,10 +661,7 @@ static int HW_watchpointHandler(unsigned long addr, unsigned int esr, struct pt_
         if (wp == NULL)
             continue;
 
-        /*
-     * Check that the access type matches.
-     * 0 => load, otherwise => store
-     */
+        /*检测触发的断点类型*/
         access = (esr & AARCH64_ESR_ACCESS_MASK) ? HW_BREAKPOINT_W : HW_BREAKPOINT_R;
         if (!(access /*& hw_breakpoint_type(wp)待实现，将wp与attr->type关联*/))
             continue;
@@ -706,23 +696,11 @@ static int HW_watchpointHandler(unsigned long addr, unsigned int esr, struct pt_
      * We always disable EL0 watchpoints because the kernel can
      * cause these to fire via an unprivileged access.
      */
-    HW_toggleBpRegisters(AARCH64_DBG_REG_WCR, DBG_ACTIVE_EL0, 0);
     HW_toggleBpRegisters(AARCH64_DBG_REG_WCR, DBG_ACTIVE_EL1, 0);
     kernel_step = this_cpu_ptr(&stepping_kernel_bp);
 
     // printk("watchpoint is trigger,addr=0x%lx, close = %d, dist = %d, mindist = %d, info = %lx\n",
     //        addr, closest_match, dist, min_dist);
-    if (info)
-    {
-        wp = container_of(info, struct HW_breakpointInfo, info);
-        if (addr >= wp->attr.addr && addr < wp->attr.addr + wp->attr.len)
-        {
-            /*在期望检测的地址范围之内，才打印堆栈信息*/
-            printk("wp is triger = 0x%llx, addr = 0x%llx, len = %d\n", addr, wp->attr.addr, wp->attr.len);
-            kernelApi.fun.show_regs(regs);
-        }
-        info->trigger = 0;
-    }
 
     if (*kernel_step != ARM_KERNEL_STEP_NONE)
         return 0;
@@ -822,15 +800,60 @@ static int HW_breakpointReset(unsigned int cpu)
     return 0;
 }
 
+static void HW_showRegs(struct pt_regs *regs)
+{
+    int                       i = 0;
+    struct HW_breakpointInfo *wp, **slots;
+
+    rcu_read_lock();
+    slots = this_cpu_ptr(bp_on_reg);
+    for (i = 0; i < core_num_brps; ++i)
+    {
+        wp = slots[i];
+        if (wp == NULL)
+            continue;
+        if (wp->info.trigger)
+        {
+            /*只要触发了就打印信息*/
+            printk("bp is triger = 0x%llx, addr = 0x%llx, len = %d\n", wp->info.trigger, wp->attr.addr, wp->attr.len);
+            kernelApi.fun.show_regs(regs);
+            wp->info.trigger = 0;
+        }
+    }
+    slots = this_cpu_ptr(wp_on_reg);
+    for (i = 0; i < core_num_wrps; ++i)
+    {
+        wp = slots[i];
+        if (wp == NULL)
+            continue;
+        if (!wp->info.trigger)
+        {
+            /*未触发跳过*/
+            continue;
+        }
+        if (wp->info.trigger >= wp->attr.addr && wp->info.trigger < wp->attr.addr + wp->attr.len)
+        {
+            /*在期望检测的地址范围之内，才打印堆栈信息*/
+            printk("wp is triger = 0x%llx, addr = 0x%llx, len = %d\n", wp->info.trigger, wp->attr.addr, wp->attr.len);
+            kernelApi.fun.show_regs(regs);
+        }
+        wp->info.trigger = 0;
+    }
+    rcu_read_unlock();
+}
+
 /*单步异常回调函数，该函数将重新开启被关闭的断点*/
 static int HW_stepBrkFn(struct pt_regs *regs, unsigned int esr)
 {
     int *kernel_step;
 
+    /*取step状态*/
     kernel_step = this_cpu_ptr(&stepping_kernel_bp);
 
     if (user_mode(regs) || !(*kernel_step))
         return DBG_HOOK_ERROR;
+
+    HW_showRegs(regs);
 
     if (HW_breakpointReinstall(regs))
     {
@@ -982,6 +1005,12 @@ static int HW_getKernelApi(void)
     if (!kernelApi.fun.show_regs)
     {
         printk("get show_regs fail\n");
+        return -1;
+    }
+    kernelApi.fun.dump_backtrace = (void *)kernelApi.fun.kallsyms_lookup_name("dump_backtrace");
+    if (!kernelApi.fun.dump_backtrace)
+    {
+        printk("get dump_backtrace fail\n");
         return -1;
     }
     /*5.0以下内核用的是register_step_hook*/
