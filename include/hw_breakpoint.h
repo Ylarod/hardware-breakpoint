@@ -153,6 +153,7 @@ typedef struct HW_kernelApi
         u64 (*read_sanitised_ftr_reg)(u32 id);                   /*读ftr寄存器*/
         void (*show_regs)(struct pt_regs *);                     /*显示堆栈*/
         void (*do_bad)(unsigned long addr, unsigned int esr, struct pt_regs *regs); /*调试异常的默认中断处理函数*/
+        void *res[5];
     } fun;
     struct
     {
@@ -162,6 +163,7 @@ typedef struct HW_kernelApi
 #endif
         struct fault_info *debug_fault_info;              /*接管硬件断点调试异常中断，替换回调函数*/
         struct fault_info  default_fault_info[2];         /*接管之前的数据信息*/
+        void *res[7];
     } val;
 
 } HW_kernelApi;
