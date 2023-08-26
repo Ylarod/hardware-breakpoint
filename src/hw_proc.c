@@ -27,7 +27,7 @@ char *test_proc_write_usag    = {"Usage:\n"
                                     "\t\t\t\t[wp2]: HW_BREAKPOINT_W\n"
                                     "\t\t\t\t[wp3]: HW_BREAKPOINT_R|HW_BREAKPOINT_W\n"
                                     "\t\t\t\t[bp]:  HW_BREAKPOINT_X\n"
-                                    "t\t\t[len]:[0,8] (2^3,2^31]\n"
+                                    "\t\t\t[len]:[0,8] (2^3,2^31]\n"
                                     "\t\t2: echo del <symbol> > /proc/breakpoint, del a breakpoint\n"
                                     "\t\t3: echo get ptr/val <symbol> > /proc/breakpoint, search &symbol/*(&symbol)\n"};
 char *test_proc_write_example = {"Example:\n"
