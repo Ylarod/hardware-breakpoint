@@ -29,7 +29,8 @@ char *test_proc_write_usag    = {"Usage:\n"
                                     "\t\t\t\t[bp]:  HW_BREAKPOINT_X\n"
                                     "\t\t\t[len]:[0,8] (2^3,2^31]\n"
                                     "\t\t2: echo del <symbol> > /proc/breakpoint, del a breakpoint\n"
-                                    "\t\t3: echo get ptr/val <symbol> > /proc/breakpoint, search &symbol/*(&symbol)\n"};
+                                    "\t\t3: echo get ptr/val <symbol> > /proc/breakpoint, search &symbol/*(&symbol)\n"
+                                    "\t\t4: echo iophy <ioaddr> > /proc/breakpoint, search all of ioaddr map virt\n"};
 char *test_proc_write_example = {"Example:\n"
                                  "\tThe first step:\n"
                                  "\t\techo add wp3 4 zwf_test_value0 > /proc/breakpoint, add a watchpoint at "
@@ -103,6 +104,63 @@ u32 zwf_test_value3[32] = {0};
 u32 zwf_test_value2[32] = {0};
 u32 zwf_test_value1[32] = {0};
 u32 zwf_test_value0[32] = {0};
+
+/*显示一块vm struct，以及物理地址对应的虚拟地址*/
+static void HW_testShowVm(struct vm_struct *area, u64 phyAddr)
+{
+    printk("--------------------------------------------------\n");
+    printk("VM STRUCT:\n");
+    printk("\tphy addr:\t0x%llx\n", area->phys_addr);
+    printk("\tvirt addr:\t0x%llx\n", area->addr);
+    printk("\tsize:\t\t0x%llx\n", area->size);
+    printk("0x%llx to virt: 0x%llx\n", phyAddr, area->addr + phyAddr - area->phys_addr);
+    printk("\n");
+}
+
+/*proc 通过IO地址查询所有映射过的虚拟地址*/
+static void HW_testIOPhyToVirt(char *addrB)
+{
+    u64 ioAddr = 0;
+
+    if (!kernelApi.val.vmap_area_list || !kernelApi.val.vmap_area_lock)
+    {
+        printk("vmap_area_list or vmap_area_lock is NULL, can not get virt");
+        return;
+    }
+
+    /*buf转IO地址*/
+    ioAddr = simple_strtol(addrB, NULL, 0);
+
+    /*查询所有虚拟地址*/
+    struct vmap_area *va = NULL;
+    spin_lock(kernelApi.val.vmap_area_lock);
+    list_for_each_entry(va, kernelApi.val.vmap_area_list, list)
+    {
+        struct vm_struct *area = va->vm;
+        if (area)
+        {
+            if (area->flags & VM_IOREMAP)
+            {
+                /*找到了IO地址，检查要查询的IO地址是否在该IO地址范围内*/
+                struct vm_struct *next = area;
+                while (next)
+                {
+                    /*要查询的IO地址在其范围内*/
+                    if (ioAddr >= area->phys_addr && ioAddr < area->phys_addr + next->size)
+                    {
+                        HW_testShowVm(area, ioAddr);
+                    }
+                    next = next->next;
+                    if (next == area)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    spin_unlock(kernelApi.val.vmap_area_lock);
+}
 
 /*proc get查询*/
 static int HW_testGet(char *typeB, char *nameB)
@@ -249,11 +307,10 @@ static void HW_testReadWrite(char *cmd, char *testIndexB, char *indexB)
 
 static ssize_t hw_proc_write(struct file *file, const char __user *pBuf, size_t count, loff_t *pPos)
 {
-    char   cmdBuf[128] = {0};
     size_t ret;
-    int    argc = 0, type = 0;
+    char   cmdBuf[128] = {0};
+    int    argc        = 0;
     char  *argv[10]    = {NULL};
-    u64    installAddr = 0;
 
     // printk("hw_proc_write\n");
 
@@ -331,6 +388,15 @@ static ssize_t hw_proc_write(struct file *file, const char __user *pBuf, size_t 
         {
             goto cmdErr;
         }
+    }
+    else if (strcmp("iophy", argv[0]) == 0)
+    {
+        if (argc != 2)
+        {
+            // printk("argc = %d\n",argc);
+            goto cmdErr;
+        }
+        HW_testIOPhyToVirt(argv[1]);
     }
     else
     {
