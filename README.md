@@ -498,3 +498,33 @@ breakpoint[9]:
 
 ```
 
+### 根据IO地址查询所有映射的虚拟地址
+
+`echo iophy <ioaddr> > /proc/breakpoint`
+该功能用于监测IO地址的更改，因为同一个IO地址可能被多个地方ioremap过，所以要监测IO地址的话就先找到该IO地址对应的所有虚拟地址。
+示例：
+```
+/home # echo iophy 0x11030000 > /proc/breakpoint
+--------------------------------------------------
+VM STRUCT:
+     phy addr:       0x11030000              /*该vm_struct映射的物理起始地址*/
+     virt addr:      0xffffff800a135000      /*物理地址对应的虚拟地址起始地址*/
+     size:           0x2000                  /*vm_struct映射的内存大小*/
+0x11030000 to virt: 0xffffff800a135000          /*要查询的IO地址对应的虚拟地址*/
+
+--------------------------------------------------
+VM STRUCT:
+        phy addr:       0x11020000
+        virt addr:      0xffffff800c780000
+        size:           0x11000
+0x11030000 to virt: 0xffffff800c790000
+
+--------------------------------------------------
+VM STRUCT:
+        phy addr:       0x10280000
+        virt addr:      0xffffff8010000000
+        size:           0x79d1000
+0x11030000 to virt: 0xffffff8010db0000
+
+```
+
