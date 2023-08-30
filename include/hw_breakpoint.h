@@ -4,6 +4,7 @@
 #include "asm-generic/int-ll64.h"
 #include "asm/virt.h"
 #include <asm/debug-monitors.h>
+#include "linux/spinlock_types.h"
 
 /* Privilege Levels */
 #define AARCH64_BREAKPOINT_EL1 1
@@ -152,17 +153,19 @@ typedef struct HW_kernelApi
         void (*kernel_disable_single_step)(void);                /*失能单步调试异常*/
         u64 (*read_sanitised_ftr_reg)(u32 id);                   /*读ftr寄存器*/
         void (*show_regs)(struct pt_regs *);                     /*显示堆栈*/
-        void (*dump_backtrace)(struct pt_regs *regs, struct task_struct *tsk);/**/
+        void (*dump_backtrace)(struct pt_regs *regs, struct task_struct *tsk); /**/
         void (*do_bad)(unsigned long addr, unsigned int esr, struct pt_regs *regs); /*调试异常的默认中断处理函数*/
     } __aligned(128) fun;
     struct
     {
 #ifdef CONFIG_CPU_PM
-        u64               *hw_breakpoint_restore;         /*cpu从调试暂停恢复运行时执行的函数*/
-        u64                default_hw_breakpoint_restore; /*接管之前的函数地址*/
+        u64 *hw_breakpoint_restore;         /*cpu从调试暂停恢复运行时执行的函数*/
+        u64  default_hw_breakpoint_restore; /*接管之前的函数地址*/
 #endif
-        struct fault_info *debug_fault_info;              /*接管硬件断点调试异常中断，替换回调函数*/
-        struct fault_info  default_fault_info[2];         /*接管之前的数据信息*/
+        struct fault_info *debug_fault_info;      /*接管硬件断点调试异常中断，替换回调函数*/
+        struct fault_info  default_fault_info[2]; /*接管之前的数据信息*/
+        spinlock_t        *vmap_area_lock;        /*内核vm spinlock*/
+        struct list_head  *vmap_area_list         /*内核vm链表，所有虚拟内存都在这个链表里*/
     } __aligned(128) val;
 
 } HW_kernelApi;

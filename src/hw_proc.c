@@ -99,10 +99,153 @@ static ssize_t hw_proc_read(struct file *file, char __user *pBuf, size_t count, 
     return 0;
 }
 
-u32            zwf_test_value3[32] = {0};
-u32            zwf_test_value2[32] = {0};
-u32            zwf_test_value1[32] = {0};
-u32            zwf_test_value0[32] = {0};
+u32 zwf_test_value3[32] = {0};
+u32 zwf_test_value2[32] = {0};
+u32 zwf_test_value1[32] = {0};
+u32 zwf_test_value0[32] = {0};
+
+/*proc get查询*/
+static int HW_testGet(char *typeB, char *nameB)
+{
+    u64 addr = 0;
+
+    /*查询符号地址*/
+    addr = kernelApi.fun.kallsyms_lookup_name(nameB);
+    if (!addr || addr < TASK_SIZE)
+    {
+        printk("can not find symbol %s\n", nameB);
+        return -1;
+    }
+    if (strcmp("ptr", typeB) == 0)
+    {
+        printk("&%s = 0x%llx\n", nameB, addr);
+    }
+    else if (strcmp("val", typeB) == 0)
+    {
+        printk("*(%s) = 0x%llx\n", nameB, *((u64 *)addr));
+    }
+    else
+    {
+        return -1;
+    }
+    return 0;
+}
+
+/*proc删除断点*/
+static void HW_testDel(char *nameB)
+{
+    u64 uninstallAddr = 0;
+
+    if (nameB[0] == '0' && nameB[1] == 'x')
+    {
+        uninstallAddr = simple_strtol(nameB, 0, 0);
+    }
+    if (uninstallAddr)
+    {
+        printk("will uninstall at 0x%llx\n", uninstallAddr);
+        HW_breakpointUnInstallFromAddr(uninstallAddr);
+    }
+    else
+    {
+        printk("will uninstall at &%s\n", nameB);
+        HW_breakpointUnInstallFromSymbol(nameB);
+    }
+}
+
+/*proc添加断点*/
+static int HW_testAdd(char *tybeB, char *lenB, char *nameB)
+{
+    char *name = NULL;
+    int   len = HW_BREAKPOINT_LEN_4, type = 0;
+    u64   installAddr = 0;
+
+    /*判断断点类型*/
+    switch (strlen(tybeB))
+    {
+        /*长度是2代表执行断点*/
+        case 2:
+        {
+            type = HW_BREAKPOINT_X;
+            name = nameB;
+            break;
+        }
+        /*长度是3代表内存断点，第三个字符是断点类型*/
+        case 3:
+        {
+            type = tybeB[2] - '0';
+            len  = (int)simple_strtoul(lenB, NULL, 0);
+            name = nameB;
+            break;
+        }
+        default:
+        {
+            return -1;
+        }
+    }
+    /*检查断点类型是否合法*/
+    if (type < 1 || type > 4)
+    {
+        return -1;
+    }
+
+    if (nameB[0] == '0' && nameB[1] == 'x')
+    {
+        installAddr = simple_strtol(nameB, 0, 0);
+    }
+    if (installAddr)
+    {
+        printk("will install at 0x%llx\n", installAddr);
+        HW_breakpointInstallFromAddr(installAddr, len, type);
+    }
+    else
+    {
+        printk("will install at &%s\n", name);
+        HW_breakpointInstallFromSymbol(name, len, type);
+    }
+    return 0;
+}
+
+/*测试写入*/
+static void HW_testReadWrite(char *cmd, char *testIndexB, char *indexB)
+{
+    int  index  = simple_strtol(testIndexB, NULL, 0);
+    int  index1 = simple_strtol(indexB, NULL, 0);
+    u32 *tmpbuf;
+    switch (index)
+    {
+        case 0:
+        {
+            tmpbuf = zwf_test_value0;
+            break;
+        }
+        case 1:
+        {
+            tmpbuf = zwf_test_value1;
+            break;
+        }
+        case 2:
+        {
+            tmpbuf = zwf_test_value2;
+            break;
+        }
+        case 3:
+        default:
+        {
+            tmpbuf = zwf_test_value3;
+            break;
+        }
+    }
+    if (strcmp("write", cmd) == 0)
+    {
+        printk("will write zwf_test_value%d[%d], addr = %lx\n", index, index1, &tmpbuf[index1]);
+        tmpbuf[index1] = get_random_u32();
+    }
+    else if (strcmp("read", cmd) == 0)
+    {
+        printk("will read zwf_test_value%d[%d], addr = %lx\n", index, index1, &tmpbuf[index1]);
+        printk("zwf_test_value%d[%d] = %d\n", index, index1, tmpbuf[index1]);
+    }
+}
 
 static ssize_t hw_proc_write(struct file *file, const char __user *pBuf, size_t count, loff_t *pPos)
 {
@@ -135,81 +278,13 @@ static ssize_t hw_proc_write(struct file *file, const char __user *pBuf, size_t 
 
     // printk("CPU = %d\n", raw_smp_processor_id());
 
-    if (strcmp("write", argv[0]) == 0)
+    if (strcmp("write", argv[0]) == 0 || strcmp("read", argv[0]) == 0)
     {
         if (argc != 3)
         {
             goto cmdErr;
         }
-        char *end;
-        int   index  = simple_strtol(argv[1], &end, 0);
-        int   index1 = simple_strtol(argv[2], &end, 0);
-        u32  *tmpbuf;
-        switch (index)
-        {
-            case 0:
-            {
-                tmpbuf = zwf_test_value0;
-                break;
-            }
-            case 1:
-            {
-                tmpbuf = zwf_test_value1;
-                break;
-            }
-            case 2:
-            {
-                tmpbuf = zwf_test_value2;
-                break;
-            }
-            case 3:
-            default:
-            {
-                tmpbuf = zwf_test_value3;
-                break;
-                break;
-            }
-        }
-        printk("will write zwf_test_value%d[%d], addr = %lx\n", index, index1, &tmpbuf[index1]);
-        tmpbuf[index1] = get_random_u32();
-        return count;
-    }
-    else if (strcmp("read", argv[0]) == 0)
-    {
-        if (argc != 3)
-        {
-            goto cmdErr;
-        }
-        char *end;
-        int   index  = simple_strtol(argv[1], &end, 0);
-        int   index1 = simple_strtol(argv[2], &end, 0);
-        u32  *tmpbuf;
-        switch (index)
-        {
-            case 0:
-            {
-                tmpbuf = zwf_test_value0;
-                break;
-            }
-            case 1:
-            {
-                tmpbuf = zwf_test_value1;
-                break;
-            }
-            case 2:
-            {
-                tmpbuf = zwf_test_value2;
-                break;
-            }
-            case 3:
-            default:
-            {
-                tmpbuf = zwf_test_value3;
-                break;
-            }
-        }
-        printk("will read zwf_test_value%d[%d], addr = %lx\n", index, index1, &tmpbuf[index1]);
-        printk("zwf_test_value%d[%d] = %d\n", index, index1, tmpbuf[index1]);
+        HW_testReadWrite(argv[0], argv[1], argv[2]);
         return count;
     }
     else if (strcmp("show", argv[0]) == 0)
@@ -226,55 +301,14 @@ static ssize_t hw_proc_write(struct file *file, const char __user *pBuf, size_t 
 
     if (strcmp("add", argv[0]) == 0)
     {
-        char *name = NULL;
-        int   len  = HW_BREAKPOINT_LEN_4;
         if (argc != 4)
         {
             // printk("argc = %d\n",argc);
             goto cmdErr;
         }
-        /*判断断点类型*/
-        switch (strlen(argv[1]))
-        {
-            /*长度是2代表执行断点*/
-            case 2:
-            {
-                type = HW_BREAKPOINT_X;
-                name = argv[3];
-                break;
-            }
-            /*长度是3代表内存断点，第三个字符是断点类型*/
-            case 3:
-            {
-                type = argv[1][2] - '0';
-                len  = (int)simple_strtoul(argv[2], NULL, 0);
-                name = argv[3];
-                break;
-            }
-            default:
-            {
-                goto cmdErr;
-                break;
-            }
-        }
-        /*检查断点类型是否合法*/
-        if (type < 1 || type > 4)
+        if (HW_testAdd(argv[1], argv[2], argv[3]))
         {
             goto cmdErr;
-        }
-        if (argv[3][0] == '0' && argv[3][1] == 'x')
-        {
-            installAddr = simple_strtol(argv[3], 0, 0);
-        }
-        if (installAddr)
-        {
-            printk("will install at 0x%llx\n", installAddr);
-            HW_breakpointInstallFromAddr(installAddr, len, type);
-        }
-        else
-        {
-            printk("will install at &%s\n", name);
-            HW_breakpointInstallFromSymbol(name, len, type);
         }
     }
     else if (strcmp("del", argv[0]) == 0)
@@ -284,20 +318,7 @@ static ssize_t hw_proc_write(struct file *file, const char __user *pBuf, size_t 
             // printk("argc = %d\n",argc);
             goto cmdErr;
         }
-        if (argv[1][0] == '0' && argv[1][1] == 'x')
-        {
-            installAddr = simple_strtol(argv[1], 0, 0);
-        }
-        if (installAddr)
-        {
-            printk("will uninstall at 0x%llx\n", installAddr);
-            HW_breakpointUnInstallFromAddr(installAddr);
-        }
-        else
-        {
-            printk("will uninstall at &%s\n", argv[1]);
-            HW_breakpointUnInstallFromSymbol(argv[1]);
-        }
+        HW_testDel(argv[1]);
     }
     else if (strcmp("get", argv[0]) == 0)
     {
@@ -306,21 +327,7 @@ static ssize_t hw_proc_write(struct file *file, const char __user *pBuf, size_t 
             // printk("argc = %d\n",argc);
             goto cmdErr;
         }
-        installAddr = kernelApi.fun.kallsyms_lookup_name(argv[2]);
-        if (!installAddr || installAddr < TASK_SIZE)
-        {
-            printk("can not find symbol %s\n", argv[2]);
-            return count;
-        }
-        if (strcmp("ptr", argv[1]) == 0)
-        {
-            printk("&%s = 0x%llx\n", argv[2], installAddr);
-        }
-        else if (strcmp("val", argv[1]) == 0)
-        {
-            printk("*(%s) = 0x%llx\n", argv[2], *((u64 *)installAddr));
-        }
-        else
+        if (HW_testGet(argv[1], argv[2]))
         {
             goto cmdErr;
         }

@@ -1036,6 +1036,11 @@ static int HW_getKernelApi(void)
         }
     }
 
+    /*以下不影响驱动使用，只影响根据io地址查询虚拟地址功能*/
+    kernelApi.val.vmap_area_lock = (void *)kernelApi.fun.kallsyms_lookup_name("vmap_area_lock");
+    kernelApi.val.vmap_area_list = (void *)kernelApi.fun.kallsyms_lookup_name("vmap_area_list");
+
+
     return 0;
 }
 
