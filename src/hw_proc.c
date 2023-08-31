@@ -15,6 +15,8 @@
 #include "hw_breakpointManage.h"
 
 #define PROC_FILE_DEBUG "breakpoint"
+#define VM_LAZY_FREE    0x02
+#define VM_VM_AREA      0x04
 
 static struct proc_dir_entry *proc_file = NULL;
 
@@ -109,11 +111,22 @@ u32 zwf_test_value0[32] = {0};
 static void HW_testShowVm(struct vm_struct *area, u64 phyAddr)
 {
     printk("--------------------------------------------------\n");
-    printk("VM STRUCT:\n");
-    printk("\tphy addr:\t0x%llx\n", area->phys_addr);
-    printk("\tvirt addr:\t0x%llx\n", area->addr);
-    printk("\tsize:\t\t0x%llx\n", area->size);
-    printk("0x%llx to virt: 0x%llx\n", phyAddr, area->addr + phyAddr - area->phys_addr);
+    if (area->phys_addr)
+    {
+        printk("\tphy addr:\t0x%llx\n", area->phys_addr);
+    }
+    if (area->addr)
+    {
+        printk("\tvirt addr:\t0x%llx\n", area->addr);
+    }
+    if (area->size)
+    {
+        printk("\tsize:\t\t0x%llx\n", area->size);
+    }
+    if (area->addr && area->phys_addr)
+    {
+        printk("0x%llx to virt: 0x%llx\n", phyAddr, area->addr + phyAddr - area->phys_addr);
+    }
     printk("\n");
 }
 
@@ -136,26 +149,37 @@ static void HW_testIOPhyToVirt(char *addrB)
     spin_lock(kernelApi.val.vmap_area_lock);
     list_for_each_entry(va, kernelApi.val.vmap_area_list, list)
     {
-        struct vm_struct *area = va->vm;
-        if (area)
+        if (!(va->flags & VM_VM_AREA))
         {
-            if (area->flags & VM_IOREMAP)
+            continue;
+        }
+        struct vm_struct *area = va->vm;
+        if (!area)
+        {
+            continue;
+        }
+        if (!(area->flags & VM_IOREMAP) || area->flags & VM_UNINITIALIZED)
+        {
+            continue;
+        }
+        /*在invalid queue的数据被刷完之后再执行屏障后的读操作*/
+        smp_rmb();
+        /*找到了IO地址，检查要查询的IO地址是否在该IO地址范围内*/
+        struct vm_struct *next = area;
+        while (next)
+        {
+            if (next->phys_addr && next->size)
             {
-                /*找到了IO地址，检查要查询的IO地址是否在该IO地址范围内*/
-                struct vm_struct *next = area;
-                while (next)
+                /*要查询的IO地址在其范围内*/
+                if (ioAddr >= next->phys_addr && ioAddr < next->phys_addr + next->size)
                 {
-                    /*要查询的IO地址在其范围内*/
-                    if (ioAddr >= area->phys_addr && ioAddr < area->phys_addr + next->size)
-                    {
-                        HW_testShowVm(area, ioAddr);
-                    }
-                    next = next->next;
-                    if (next == area)
-                    {
-                        break;
-                    }
+                    HW_testShowVm(next, ioAddr);
                 }
+            }
+            next = next->next;
+            if (next == area)
+            {
+                break;
             }
         }
     }
