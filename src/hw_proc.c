@@ -147,11 +147,7 @@ static void HW_testIOPhyToVirt(char *addrB)
     /*查询所有虚拟地址*/
     struct vmap_area *va = NULL;
     spin_lock(kernelApi.val.vmap_area_lock);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)
-    list_for_each_entry_from(va, kernelApi.val.vmap_area_list, list)
-#else
     list_for_each_entry(va, kernelApi.val.vmap_area_list, list)
-#endif
     {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 0, 0)
         if (!(va->flags & VM_VM_AREA))
