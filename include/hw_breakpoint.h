@@ -5,6 +5,7 @@
 #include "asm/virt.h"
 #include <asm/debug-monitors.h>
 #include "linux/spinlock_types.h"
+#include <linux/version.h>
 
 /* Privilege Levels */
 #define AARCH64_BREAKPOINT_EL1 1
@@ -200,14 +201,22 @@ static inline void HW_decodeCtrlReg(u32 reg, HW_breakpointCtrlReg *ctrl)
 static inline int HW_getNumBrps(void)
 {
     u64 dfr0 = kernelApi.fun.read_sanitised_ftr_reg(SYS_ID_AA64DFR0_EL1);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)
+    return 1 + cpuid_feature_extract_unsigned_field(dfr0, ID_AA64DFR0_EL1_BRPs_SHIFT);
+#else
     return 1 + cpuid_feature_extract_unsigned_field(dfr0, ID_AA64DFR0_BRPS_SHIFT);
+#endif
 }
 
 /* Determine number of WRP registers available. */
 static inline int HW_getNumWrps(void)
 {
     u64 dfr0 = kernelApi.fun.read_sanitised_ftr_reg(SYS_ID_AA64DFR0_EL1);
-    return 1 + cpuid_feature_extract_unsigned_field(dfr0, ID_AA64DFR0_WRPS_SHIFT);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)
+    return 1 + cpuid_feature_extract_unsigned_field(dfr0, ID_AA64DFR0_EL1_BRPs_SHIFT);
+#else
+    return 1 + cpuid_feature_extract_unsigned_field(dfr0, ID_AA64DFR0_BRPS_SHIFT);
+#endif
 }
 
 #endif

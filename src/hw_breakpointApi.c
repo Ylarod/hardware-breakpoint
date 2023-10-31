@@ -133,7 +133,11 @@ void HW_breakpointUnregister(struct HW_breakpointInfo *__percpu *bp, int state)
         return;
     }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)
+    cpus_read_lock();
+#else
     get_online_cpus();
+#endif
     for_each_possible_cpu(cpu)
     {
         if (state & 1 << cpu)
@@ -141,7 +145,11 @@ void HW_breakpointUnregister(struct HW_breakpointInfo *__percpu *bp, int state)
             HW_breakpointInfoFree(per_cpu(*bp, cpu), cpu);
         }
     }
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)
+    cpus_read_unlock();
+#else
     put_online_cpus();
+#endif
 }
 
 int HW_breakpointRegister(struct HW_breakpointInfo *__percpu *cpu_events, HW_breakpointAttr *attr, int *state)
@@ -156,7 +164,11 @@ int HW_breakpointRegister(struct HW_breakpointInfo *__percpu *cpu_events, HW_bre
     }
 
     *state = 0;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)
+    cpus_read_lock();
+#else
     get_online_cpus();
+#endif
     for_each_online_cpu(cpu)
     {
         bp = HW_breakpointInfoAlloc(attr, cpu);
@@ -169,7 +181,11 @@ int HW_breakpointRegister(struct HW_breakpointInfo *__percpu *cpu_events, HW_bre
         /*为每个CPU保存设置的断点*/
         per_cpu(*cpu_events, cpu) = bp;
     }
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)
+    cpus_read_unlock();
+#else
     put_online_cpus();
+#endif
 
     return 0;
 }
