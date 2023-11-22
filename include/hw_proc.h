@@ -9,7 +9,7 @@
 #ifndef _hw_proc_H
 #define _hw_proc_H
 
-extern int  hw_proc_init(void);
+extern int hw_proc_init(void);
 extern void hw_proc_exit(void);
 
 #endif
