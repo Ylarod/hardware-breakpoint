@@ -15,8 +15,10 @@
 #include "hw_breakpointManage.h"
 
 #define PROC_FILE_DEBUG "breakpoint"
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 72)
 #define VM_LAZY_FREE    0x02
 #define VM_VM_AREA      0x04
+#endif
 
 static struct proc_dir_entry *proc_file = NULL;
 
@@ -149,7 +151,7 @@ static void HW_testIOPhyToVirt(char *addrB)
     spin_lock(kernelApi.val.vmap_area_lock);
     list_for_each_entry(va, kernelApi.val.vmap_area_list, list)
     {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 0, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 72)
         if (!(va->flags & VM_VM_AREA))
         {
             continue;
