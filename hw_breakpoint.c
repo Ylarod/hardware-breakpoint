@@ -724,11 +724,7 @@ NOKPROBE_SYMBOL(HW_watchpointHandler);
 /*
  * 单步异常回调函数中调用，重新开启已经关闭的断点
  */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)
-static int HW_stepBrkFn(struct pt_regs *regs, unsigned long esr)
-#else
-static int HW_stepBrkFn(struct pt_regs *regs, unsigned int esr)
-#endif
+int HW_breakpointReinstall(struct pt_regs *regs)
 {
     // struct debug_info *debug_info = &current->thread.debug;
     int handled_exception = 0, *kernel_step;
@@ -847,7 +843,11 @@ static void HW_showRegs(struct pt_regs *regs)
 }
 
 /*单步异常回调函数，该函数将重新开启被关闭的断点*/
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)
+static int HW_stepBrkFn(struct pt_regs *regs, unsigned long esr)
+#else
 static int HW_stepBrkFn(struct pt_regs *regs, unsigned int esr)
+#endif
 {
     int *kernel_step;
 
