@@ -216,7 +216,7 @@ static inline int HW_getNumWrps(void)
 			   dfr0, ID_AA64DFR0_EL1_BRPs_SHIFT);
 #else
 	return 1 + cpuid_feature_extract_unsigned_field(dfr0,
-							ID_AA64DFR0_BRPS_SHIFT);
+							ID_AA64DFR0_WRPS_SHIFT);
 #endif
 }
 
